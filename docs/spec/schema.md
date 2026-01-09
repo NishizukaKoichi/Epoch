@@ -1,6 +1,6 @@
 # Schema Spec
 
-Required fields. Do not proceed if any __REQUIRED:...__ remain.
+Required fields. Do not proceed if any REQUIRED placeholders remain.
 
 ## Tables
 - users
@@ -15,4 +15,4 @@ Required fields. Do not proceed if any __REQUIRED:...__ remain.
 - Stripe Price IDs are reference-only; logic must never branch on priceId.
 
 ## Required Changes for Your Product
-- __REQUIRED:schema_changes__
+- テンプレのまま使用。必要に応じて product_plans.cap に制限値（例: projects）を保存する。

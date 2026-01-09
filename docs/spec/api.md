@@ -1,12 +1,12 @@
 # API Spec
 
-Required fields. Do not proceed if any __REQUIRED:...__ remain.
+Required fields. Do not proceed if any REQUIRED placeholders remain.
 
 ## Public Endpoints
-- __REQUIRED:public_endpoints__
+- GET /, /plans, /dashboard, /admin/pricing
 
 ## Auth/Identity Assumptions
-- __REQUIRED:auth_assumptions__
+- userId は認証基盤から取得し、API には userId が渡される前提。
 
 ## Billing Endpoints
 - POST /api/billing/checkout: planKey -> Checkout URL
@@ -15,4 +15,4 @@ Required fields. Do not proceed if any __REQUIRED:...__ remain.
 - POST /api/admin/pricing: create new Stripe Price and set active
 
 ## Error Handling
-- __REQUIRED:error_handling__
+- 欠損入力は 400、未知の planKey は 404、価格未設定は 409、Webhook検証失敗は 400。

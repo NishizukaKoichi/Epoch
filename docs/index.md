@@ -4,7 +4,7 @@ This is a gate, not reference material. Required fields must be completed before
 
 ## How to Use
 - Read the docs in the order listed in README.
-- Replace all __REQUIRED:...__ placeholders in required sections.
+- Replace all REQUIRED placeholders in required sections.
 - Run `node scripts/verify.mjs` until it prints OK.
 
 ## Rules
