@@ -9,6 +9,10 @@ This repo is a gate, not documentation. If required fields are blank, you are no
 - Billing: Stripe Checkout + Webhook are wired, and entitlements update from webhook events.
 - Continued usage: users can reach the value loop again without human help.
 
+## Status
+- Completed: Spec / Docs Gate v1
+- Next: add build/test after product-contracts integration
+
 ## Docs Gate (Read Order)
 1. docs/index.md
 2. docs/value.md
