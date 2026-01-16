@@ -39,23 +39,22 @@ type EpochRecordInput = {
   attachments?: AttachmentInput[];
 };
 
-type EpochStore = {
-  recordsByUser: Map<string, EpochRecord[]>;
-  recordsById: Map<string, EpochRecord>;
-  attachmentsByRecord: Map<string, AttachmentInput[]>;
-  visibilityOverrides: Map<string, Visibility>;
+type EpochRecordRow = {
+  record_id: string;
+  user_id: string;
+  recorded_at: string;
+  record_type: RecordType;
+  payload: unknown;
+  prev_hash: string | null;
+  record_hash: string;
+  visibility: Visibility;
 };
 
-const globalStore = globalThis as unknown as { __epochStore?: EpochStore };
-
-const epochStore: EpochStore =
-  globalStore.__epochStore ??
-  (globalStore.__epochStore = {
-    recordsByUser: new Map<string, EpochRecord[]>(),
-    recordsById: new Map<string, EpochRecord>(),
-    attachmentsByRecord: new Map<string, AttachmentInput[]>(),
-    visibilityOverrides: new Map<string, Visibility>(),
-  });
+type EpochAttachmentRow = {
+  record_id: string;
+  attachment_hash: string;
+  storage_pointer: string;
+};
 
 const allowedRecordTypes = new Set<RecordType>([
   "decision_made",
@@ -137,54 +136,64 @@ function validateAttachments(attachments: AttachmentInput[]): void {
   }
 }
 
-function buildRecord(input: EpochRecordInput): EpochRecord {
-  if (!input.userId) {
-    throw new Error("userId is required");
+function parsePayload(value: unknown): Record<string, unknown> | unknown[] {
+  if (value === null || value === undefined) {
+    return {};
   }
-  assertRecordType(input.recordType);
-  const payload = input.payload;
-  if (payload === null || payload === undefined) {
-    throw new Error("payload is required");
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "object") {
+        return parsed as Record<string, unknown> | unknown[];
+      }
+    } catch (_) {
+      return { value };
+    }
   }
-
-  const attachments = input.attachments ?? [];
-  validateAttachments(attachments);
-
-  const recordId = uuidV7Like();
-  const recordedAt = new Date().toISOString();
-  const records = epochStore.recordsByUser.get(input.userId) ?? [];
-  const prevHash = records.length > 0 ? records[records.length - 1].recordHash : null;
-  const visibility = normalizeVisibility(input.visibility);
-
-  const recordHash = computeRecordHash({
-    recordId,
-    userId: input.userId,
-    recordedAt,
-    recordType: input.recordType,
-    payload,
-    prevHash,
-    attachments,
-  });
-
-  return {
-    recordId,
-    userId: input.userId,
-    recordedAt,
-    recordType: input.recordType,
-    payload,
-    prevHash,
-    recordHash,
-    visibility,
-    attachments,
-  };
+  if (typeof value === "object") {
+    return value as Record<string, unknown> | unknown[];
+  }
+  return { value };
 }
 
-function storeRecord(record: EpochRecord): void {
-  const records = epochStore.recordsByUser.get(record.userId) ?? [];
-  records.push(record);
-  epochStore.recordsByUser.set(record.userId, records);
-  epochStore.recordsById.set(record.recordId, record);
-  epochStore.attachmentsByRecord.set(record.recordId, record.attachments);
+async function getDbNowIso(): Promise<string> {
+  const rows = await query<{ now: string }>("SELECT NOW() as now");
+  const dbNow = rows[0]?.now;
+  if (dbNow) {
+    return new Date(dbNow).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+async function getLatestRecordForUser(userId: string): Promise<{
+  recordHash: string;
+  recordedAt: string;
+} | null> {
+  const rows = await query<{ record_hash: string; recorded_at: string }>(
+    `SELECT record_hash, recorded_at
+     FROM epoch_records
+     WHERE user_id = $1
+     ORDER BY recorded_at DESC, record_id DESC
+     LIMIT 1
+     FOR UPDATE`,
+    [userId]
+  );
+  if (rows.length === 0) {
+    return null;
+  }
+  return { recordHash: rows[0].record_hash, recordedAt: rows[0].recorded_at };
+}
+
+function ensureMonotonicRecordedAt(nowIso: string, lastIso?: string): string {
+  if (!lastIso) {
+    return nowIso;
+  }
+  const now = new Date(nowIso).getTime();
+  const last = new Date(lastIso).getTime();
+  if (now > last) {
+    return nowIso;
+  }
+  return new Date(last + 1).toISOString();
 }
 
 async function persistRecord(record: EpochRecord): Promise<void> {
@@ -240,26 +249,135 @@ async function persistAttachments(record: EpochRecord): Promise<void> {
   );
 }
 
-async function persistRecordWithAttachments(record: EpochRecord): Promise<void> {
-  await transaction(async () => {
-    await persistRecord(record);
-    await persistAttachments(record);
+function mapRecordRow(
+  row: EpochRecordRow,
+  attachments: AttachmentInput[]
+): EpochRecord {
+  return {
+    recordId: row.record_id,
+    userId: row.user_id,
+    recordedAt: row.recorded_at,
+    recordType: row.record_type,
+    payload: parsePayload(row.payload),
+    prevHash: row.prev_hash,
+    recordHash: row.record_hash,
+    visibility: row.visibility,
+    attachments,
+  };
+}
+
+async function loadAttachmentsMap(recordIds: string[]): Promise<Map<string, AttachmentInput[]>> {
+  const map = new Map<string, AttachmentInput[]>();
+  if (recordIds.length === 0) {
+    return map;
+  }
+
+  const placeholders = recordIds.map((_, index) => `$${index + 1}`).join(", ");
+  const rows = await query<EpochAttachmentRow>(
+    `SELECT record_id, attachment_hash, storage_pointer
+     FROM epoch_attachments
+     WHERE record_id IN (${placeholders})`,
+    recordIds
+  );
+
+  for (const row of rows) {
+    const list = map.get(row.record_id) ?? [];
+    list.push({
+      attachmentHash: row.attachment_hash,
+      storagePointer: row.storage_pointer,
+    });
+    map.set(row.record_id, list);
+  }
+
+  return map;
+}
+
+function buildVisibilityOverrides(records: EpochRecord[]): Map<string, Visibility> {
+  const overrides = new Map<string, Visibility>();
+
+  for (const record of records) {
+    if (record.recordType !== "visibility_changed") {
+      continue;
+    }
+
+    const payload = record.payload;
+    if (!payload || typeof payload !== "object") {
+      continue;
+    }
+
+    const targetId = (payload as Record<string, unknown>).target_record_id;
+    const visibility = (payload as Record<string, unknown>).visibility;
+    if (typeof targetId !== "string" || typeof visibility !== "string") {
+      continue;
+    }
+
+    const normalized = normalizeVisibility(visibility);
+    overrides.set(targetId, normalized);
+  }
+
+  return overrides;
+}
+
+function applyVisibilityOverrides(
+  records: EpochRecord[],
+  overrides: Map<string, Visibility>
+): EpochRecord[] {
+  return records.map((record) => {
+    const override = overrides.get(record.recordId);
+    if (!override) {
+      return record;
+    }
+    return { ...record, visibility: override };
   });
 }
 
-function applyVisibility(record: EpochRecord): EpochRecord {
-  const override = epochStore.visibilityOverrides.get(record.recordId);
-  if (!override) {
-    return record;
-  }
-  return { ...record, visibility: override };
-}
-
 export async function createEpochRecord(input: EpochRecordInput): Promise<EpochRecord> {
-  const record = buildRecord(input);
-  await persistRecordWithAttachments(record);
-  storeRecord(record);
-  return record;
+  if (!input.userId) {
+    throw new Error("userId is required");
+  }
+  assertRecordType(input.recordType);
+  const payload = input.payload;
+  if (payload === null || payload === undefined) {
+    throw new Error("payload is required");
+  }
+
+  const attachments = input.attachments ?? [];
+  validateAttachments(attachments);
+  const visibility = normalizeVisibility(input.visibility);
+
+  return transaction(async () => {
+    const nowIso = await getDbNowIso();
+    const latest = await getLatestRecordForUser(input.userId);
+    const prevHash = latest?.recordHash ?? null;
+    const recordedAt = ensureMonotonicRecordedAt(nowIso, latest?.recordedAt);
+    const recordId = uuidV7Like();
+    const recordHash = computeRecordHash({
+      recordId,
+      userId: input.userId,
+      recordedAt,
+      recordType: input.recordType,
+      payload,
+      prevHash,
+      attachments,
+    });
+
+    const record: EpochRecord = {
+      recordId,
+      userId: input.userId,
+      recordedAt,
+      recordType: input.recordType,
+      payload,
+      prevHash,
+      recordHash,
+      visibility,
+      attachments,
+    };
+
+    await persistRecord(record);
+    await persistAttachments(record);
+
+    return record;
+  });
 }
 
 export async function createVisibilityChangeRecord(options: {
@@ -267,8 +385,12 @@ export async function createVisibilityChangeRecord(options: {
   targetRecordId: string;
   visibility: Visibility;
 }): Promise<EpochRecord> {
-  const target = epochStore.recordsById.get(options.targetRecordId);
-  if (!target || target.userId !== options.userId) {
+  const rows = await query<{ record_id: string }>(
+    `SELECT record_id FROM epoch_records WHERE record_id = $1 AND user_id = $2`,
+    [options.targetRecordId, options.userId]
+  );
+
+  if (rows.length === 0) {
     throw new Error("Target record not found for user");
   }
 
@@ -277,20 +399,35 @@ export async function createVisibilityChangeRecord(options: {
     visibility: options.visibility,
   };
 
-  const record = await createEpochRecord({
+  return createEpochRecord({
     userId: options.userId,
     recordType: "visibility_changed",
     payload,
     visibility: "private",
   });
-
-  epochStore.visibilityOverrides.set(options.targetRecordId, options.visibility);
-  return record;
 }
 
 export async function listRecordsForUser(userId: string): Promise<EpochRecord[]> {
-  const records = epochStore.recordsByUser.get(userId) ?? [];
-  return records.map((record) => applyVisibility(record));
+  const rows = await query<EpochRecordRow>(
+    `SELECT record_id, user_id, recorded_at, record_type, payload, prev_hash, record_hash, visibility
+     FROM epoch_records
+     WHERE user_id = $1
+     ORDER BY recorded_at ASC, record_id ASC`,
+    [userId]
+  );
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const recordIds = rows.map((row) => row.record_id);
+  const attachmentsMap = await loadAttachmentsMap(recordIds);
+  const records = rows.map((row) =>
+    mapRecordRow(row, attachmentsMap.get(row.record_id) ?? [])
+  );
+
+  const overrides = buildVisibilityOverrides(records);
+  return applyVisibilityOverrides(records, overrides);
 }
 
 export async function listVisibleRecordsForUser(options: {
@@ -310,6 +447,36 @@ export async function listVisibleRecordsForUser(options: {
 }
 
 export async function getEpochRecord(recordId: string): Promise<EpochRecord | null> {
-  const record = epochStore.recordsById.get(recordId);
-  return record ? applyVisibility(record) : null;
+  const rows = await query<EpochRecordRow>(
+    `SELECT record_id, user_id, recorded_at, record_type, payload, prev_hash, record_hash, visibility
+     FROM epoch_records
+     WHERE record_id = $1`,
+    [recordId]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  const attachmentsMap = await loadAttachmentsMap([row.record_id]);
+  const record = mapRecordRow(row, attachmentsMap.get(row.record_id) ?? []);
+
+  const visibilityRows = await query<{ visibility: string | null }>(
+    `SELECT payload ->> 'visibility' AS visibility
+     FROM epoch_records
+     WHERE user_id = $1
+       AND record_type = 'visibility_changed'
+       AND payload ->> 'target_record_id' = $2
+     ORDER BY recorded_at DESC, record_id DESC
+     LIMIT 1`,
+    [record.userId, record.recordId]
+  );
+
+  const override = visibilityRows[0]?.visibility;
+  if (override) {
+    return { ...record, visibility: normalizeVisibility(override) };
+  }
+
+  return record;
 }
