@@ -1,4 +1,5 @@
-import crypto from "node:crypto";
+import { query } from "./db";
+import { uuidV7Like } from "./ids";
 
 export type ReadAccessType = "time_window" | "read_session";
 
@@ -10,41 +11,43 @@ export type ReadGrant = {
   createdAt: string;
   windowStart?: string;
   windowEnd?: string;
-  sessionEnd?: string;
+  startsAt?: string;
+  endsAt?: string;
   endedAt?: string;
 };
 
-type ReadAccessStore = {
-  grantsByViewer: Map<string, ReadGrant[]>;
-  grantsById: Map<string, ReadGrant>;
+type ReadGrantRow = {
+  grant_id: string;
+  viewer_user_id: string;
+  target_user_id: string;
+  grant_type: ReadAccessType;
+  window_start: string | null;
+  window_end: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  ended_at: string | null;
+  created_at: string;
 };
 
-const globalStore = globalThis as unknown as { __readAccessStore?: ReadAccessStore };
+const READ_SESSION_DURATION_MINUTES = 60;
+const TIME_WINDOW_DAYS = 90;
 
-const readAccessStore: ReadAccessStore =
-  globalStore.__readAccessStore ??
-  (globalStore.__readAccessStore = {
-    grantsByViewer: new Map<string, ReadGrant[]>(),
-    grantsById: new Map<string, ReadGrant>(),
-  });
+const TIME_WINDOW_MS = TIME_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+const SESSION_MS = READ_SESSION_DURATION_MINUTES * 60 * 1000;
 
-function parseIsoDate(value: string): Date {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new Error("Invalid ISO datetime");
-  }
-  return parsed;
-}
-
-function normalizeIso(value: string): string {
-  return parseIsoDate(value).toISOString();
-}
-
-function ensurePositiveMinutes(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error("durationMinutes must be a positive number");
-  }
-  return Math.ceil(value);
+function mapReadGrant(row: ReadGrantRow): ReadGrant {
+  return {
+    grantId: row.grant_id,
+    viewerId: row.viewer_user_id,
+    targetUserId: row.target_user_id,
+    type: row.grant_type,
+    createdAt: row.created_at,
+    windowStart: row.window_start ?? undefined,
+    windowEnd: row.window_end ?? undefined,
+    startsAt: row.starts_at ?? undefined,
+    endsAt: row.ends_at ?? undefined,
+    endedAt: row.ended_at ?? undefined,
+  };
 }
 
 export function isReadGrantActive(grant: ReadGrant, now: Date = new Date()): boolean {
@@ -52,102 +55,158 @@ export function isReadGrantActive(grant: ReadGrant, now: Date = new Date()): boo
     return false;
   }
   if (grant.type === "read_session") {
-    if (!grant.sessionEnd) {
+    if (!grant.endsAt) {
       return false;
     }
-    return now.getTime() <= new Date(grant.sessionEnd).getTime();
+    return now.getTime() <= new Date(grant.endsAt).getTime();
   }
   return true;
+}
+
+async function ensureNoActiveGrant(viewerId: string, targetUserId: string): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const rows = await query<ReadGrantRow>(
+    `SELECT *
+     FROM read_grants
+     WHERE viewer_user_id = $1
+       AND target_user_id = $2
+       AND ended_at IS NULL
+       AND (
+         (grant_type = 'read_session' AND ends_at > $3)
+         OR (grant_type = 'time_window')
+       )
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [viewerId, targetUserId, nowIso]
+  );
+
+  if (rows.length > 0) {
+    throw new Error("Active read grant already exists");
+  }
 }
 
 export async function startReadGrant(options: {
   viewerId: string;
   targetUserId: string;
   type: ReadAccessType;
-  windowStart?: string;
-  windowEnd?: string;
-  durationMinutes?: number;
 }): Promise<ReadGrant> {
   const { viewerId, targetUserId, type } = options;
   if (!viewerId || !targetUserId) {
     throw new Error("viewerId and targetUserId are required");
   }
+  if (type !== "time_window" && type !== "read_session") {
+    throw new Error("Invalid read grant type");
+  }
+
+  await ensureNoActiveGrant(viewerId, targetUserId);
 
   const now = new Date();
-  const grant: ReadGrant = {
-    grantId: crypto.randomUUID(),
-    viewerId,
-    targetUserId,
-    type,
-    createdAt: now.toISOString(),
-  };
+  const nowIso = now.toISOString();
+  const grantId = uuidV7Like();
+
+  let windowStart: string | null = null;
+  let windowEnd: string | null = null;
+  let startsAt: string | null = null;
+  let endsAt: string | null = null;
 
   if (type === "time_window") {
-    if (!options.windowStart || !options.windowEnd) {
-      throw new Error("windowStart and windowEnd are required");
-    }
-    const start = parseIsoDate(options.windowStart);
-    const end = parseIsoDate(options.windowEnd);
-    if (end.getTime() <= start.getTime()) {
-      throw new Error("windowEnd must be after windowStart");
-    }
-    grant.windowStart = normalizeIso(options.windowStart);
-    grant.windowEnd = normalizeIso(options.windowEnd);
+    windowStart = new Date(now.getTime() - TIME_WINDOW_MS).toISOString();
+    windowEnd = nowIso;
+  } else {
+    startsAt = nowIso;
+    endsAt = new Date(now.getTime() + SESSION_MS).toISOString();
   }
 
-  if (type === "read_session") {
-    const minutes = ensurePositiveMinutes(options.durationMinutes ?? 0);
-    const endsAt = new Date(now.getTime() + minutes * 60 * 1000);
-    grant.sessionEnd = endsAt.toISOString();
+  const rows = await query<ReadGrantRow>(
+    `INSERT INTO read_grants (
+       grant_id,
+       viewer_user_id,
+       target_user_id,
+       grant_type,
+       window_start,
+       window_end,
+       starts_at,
+       ends_at,
+       created_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [
+      grantId,
+      viewerId,
+      targetUserId,
+      type,
+      windowStart,
+      windowEnd,
+      startsAt,
+      endsAt,
+      nowIso,
+    ]
+  );
+
+  if (rows.length === 0) {
+    throw new Error("Failed to persist read grant");
   }
 
-  const grants = readAccessStore.grantsByViewer.get(viewerId) ?? [];
-  grants.push(grant);
-  readAccessStore.grantsByViewer.set(viewerId, grants);
-  readAccessStore.grantsById.set(grant.grantId, grant);
-
-  return grant;
+  return mapReadGrant(rows[0]);
 }
 
 export async function endReadGrant(options: {
   viewerId: string;
   grantId: string;
 }): Promise<ReadGrant | null> {
-  const grant = readAccessStore.grantsById.get(options.grantId);
-  if (!grant || grant.viewerId !== options.viewerId) {
+  const nowIso = new Date().toISOString();
+  const rows = await query<ReadGrantRow>(
+    `UPDATE read_grants
+     SET ended_at = $1
+     WHERE grant_id = $2
+       AND viewer_user_id = $3
+       AND ended_at IS NULL
+     RETURNING *`,
+    [nowIso, options.grantId, options.viewerId]
+  );
+
+  if (rows.length === 0) {
     return null;
   }
-  if (!grant.endedAt) {
-    grant.endedAt = new Date().toISOString();
-    readAccessStore.grantsById.set(grant.grantId, grant);
-  }
-  return grant;
+
+  return mapReadGrant(rows[0]);
 }
 
 export async function getReadGrantById(grantId: string): Promise<ReadGrant | null> {
-  return readAccessStore.grantsById.get(grantId) ?? null;
+  const rows = await query<ReadGrantRow>(
+    `SELECT * FROM read_grants WHERE grant_id = $1`,
+    [grantId]
+  );
+  if (rows.length === 0) {
+    return null;
+  }
+  return mapReadGrant(rows[0]);
 }
 
 export async function getActiveReadGrant(options: {
   viewerId: string;
   targetUserId: string;
 }): Promise<ReadGrant | null> {
-  const grants = readAccessStore.grantsByViewer.get(options.viewerId) ?? [];
-  const candidates = grants.filter(
-    (grant) =>
-      grant.targetUserId === options.targetUserId && isReadGrantActive(grant)
+  const rows = await query<ReadGrantRow>(
+    `SELECT *
+     FROM read_grants
+     WHERE viewer_user_id = $1
+       AND target_user_id = $2
+       AND ended_at IS NULL
+     ORDER BY created_at DESC`,
+    [options.viewerId, options.targetUserId]
   );
 
-  if (candidates.length === 0) {
+  const active = rows.map(mapReadGrant).filter((grant) => isReadGrantActive(grant));
+  if (active.length === 0) {
     return null;
   }
 
-  const activeSession = [...candidates]
-    .filter((grant) => grant.type === "read_session")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-  if (activeSession) {
-    return activeSession;
+  const session = active.find((grant) => grant.type === "read_session");
+  if (session) {
+    return session;
   }
 
-  return [...candidates].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  return active[0];
 }

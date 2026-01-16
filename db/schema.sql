@@ -82,3 +82,45 @@ CREATE TABLE epoch_attachments (
   storage_pointer TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE read_grants (
+  grant_id TEXT PRIMARY KEY,
+  viewer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  grant_type TEXT NOT NULL CHECK (grant_type IN ('time_window', 'read_session')),
+  window_start TIMESTAMPTZ,
+  window_end TIMESTAMPTZ,
+  starts_at TIMESTAMPTZ,
+  ends_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (grant_type = 'time_window'
+      AND window_start IS NOT NULL
+      AND window_end IS NOT NULL
+      AND starts_at IS NULL
+      AND ends_at IS NULL)
+    OR
+    (grant_type = 'read_session'
+      AND starts_at IS NOT NULL
+      AND ends_at IS NOT NULL
+      AND window_start IS NULL
+      AND window_end IS NULL)
+  ),
+  CHECK (
+    window_start IS NULL
+    OR window_end IS NULL
+    OR window_end > window_start
+  ),
+  CHECK (
+    starts_at IS NULL
+    OR ends_at IS NULL
+    OR ends_at > starts_at
+  )
+);
+
+CREATE INDEX read_grants_viewer_target_idx
+  ON read_grants(viewer_user_id, target_user_id, created_at DESC);
+
+CREATE INDEX read_grants_active_idx
+  ON read_grants(viewer_user_id, target_user_id, ended_at);

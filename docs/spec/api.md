@@ -34,7 +34,8 @@
 
 ## Billing / Sessions
 - POST /billing/session/start
-  - input: type (time_window | read_session), target_user_id, windowStart/windowEnd or durationMinutes
+  - input: type (time_window | read_session), target_user_id
+  - note: Time Window range and Read Session duration are fixed server-side in v1
 - POST /billing/session/end
 
 ## Error Handling

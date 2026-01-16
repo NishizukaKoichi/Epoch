@@ -49,8 +49,18 @@ Constraints
 
 ## Supporting Entities
 - Record Index (時間順読み取りのための索引)
-- Billing / Subscription / Read Session / Time Window
+- Read Grants (Time Window / Read Session)
+- Billing / Subscription
 - Audit Logs (全操作を記録、Record 本体とは分離)
+
+### ReadGrant
+- grant_id (UUIDv7)
+- viewer_user_id
+- target_user_id
+- grant_type (time_window | read_session)
+- window_start / window_end (time_window only)
+- starts_at / ends_at (read_session only)
+- ended_at (explicit end)
 
 ## Notes
 - Entitlements は実行ゲートの唯一の真実点。

@@ -11,9 +11,10 @@ export async function POST(request: Request) {
   const viewerId = body?.userId as string | undefined;
   const targetUserId = body?.targetUserId as string | undefined;
   const type = body?.type as ReadAccessType | undefined;
-  const windowStart = body?.windowStart as string | undefined;
-  const windowEnd = body?.windowEnd as string | undefined;
-  const durationMinutes = body?.durationMinutes as number | undefined;
+  const hasOverrides =
+    body?.windowStart !== undefined ||
+    body?.windowEnd !== undefined ||
+    body?.durationMinutes !== undefined;
 
   if (!viewerId || !targetUserId || !type) {
     return NextResponse.json(
@@ -25,6 +26,13 @@ export async function POST(request: Request) {
   if (viewerId === targetUserId) {
     return NextResponse.json(
       { error: "Self reads do not require a read session" },
+      { status: 400 }
+    );
+  }
+
+  if (hasOverrides) {
+    return NextResponse.json(
+      { error: "Read grant parameters are fixed in v1" },
       { status: 400 }
     );
   }
@@ -46,9 +54,6 @@ export async function POST(request: Request) {
       viewerId,
       targetUserId,
       type,
-      windowStart,
-      windowEnd,
-      durationMinutes,
     });
 
     if (type === "time_window") {
