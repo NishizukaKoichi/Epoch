@@ -12,3 +12,10 @@ This is a gate, not reference material. Required fields must be completed before
 - Prices are not defined here. Do not add amount/currency/interval/priceId anywhere in docs.
 - Plan keys are allowed. Pricing is set later by sellers in /admin/pricing.
 - Entitlements are the only execution gate; Stripe is not the truth.
+
+## Reference Specs (Non-Gate)
+- koichinishizuka.com UI仕様書: docs/spec/koichinishizuka-ui-spec.md
+- Epoch consolidated spec v1.2: docs/spec/epoch-spec-v1.2.md
+- Sigil spec: docs/spec/sigil-spec.md
+- Talisman spec v1.0: docs/spec/talisman-spec-v1.0.md
+- Pact spec v1.0: docs/spec/pact-spec-v1.0.md

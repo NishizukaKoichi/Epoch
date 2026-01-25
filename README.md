@@ -29,6 +29,13 @@ This repo is a gate, not documentation. If required fields are blank, you are no
 13. docs/ops/release.md
 14. docs/done.md
 
+## Reference Specs (Non-Gate)
+- `docs/spec/koichinishizuka-ui-spec.md`
+- `docs/spec/epoch-spec-v1.2.md`
+- `docs/spec/sigil-spec.md`
+- `docs/spec/talisman-spec-v1.0.md`
+- `docs/spec/pact-spec-v1.0.md`
+
 ## Pricing Independence (Prompt-8)
 - Price details (amount/currency/interval/priceId) do not exist in code, env, or docs.
 - Sellers set pricing later in /admin/pricing and can change it only by creating a new Stripe Price and switching Active.
