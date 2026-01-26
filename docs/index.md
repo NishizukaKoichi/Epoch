@@ -15,6 +15,7 @@ This is a gate, not reference material. Required fields must be completed before
 
 ## Reference Specs (Non-Gate)
 - koichinishizuka.com UI仕様書: docs/spec/koichinishizuka-ui-spec.md
+- koichinishizuka.com Platform API spec: docs/spec/koichinishizuka-platform-api-spec.md
 - Epoch consolidated spec v1.2: docs/spec/epoch-spec-v1.2.md
 - MagicSpell fixed spec: docs/spec/magicspell-fixed-spec.md
 - MagicSpell Runtime spec: docs/spec/magicspell-runtime-spec.md
