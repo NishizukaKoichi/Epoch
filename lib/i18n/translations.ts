@@ -1,0 +1,1171 @@
+export const translations = {
+  ja: {
+    // Header
+    "header.principles": "原則",
+    "header.browse": "一覧",
+    "header.scout": "スカウト",
+    "header.recording": "記録中",
+    "header.login": "登録 / ログイン",
+
+    // Record types
+    "record.decision_made": "判断した",
+    "record.decision_not_made": "判断しなかった",
+    "record.revised": "改訂した",
+    "record.period_of_silence": "沈黙期間",
+
+    // Visibility
+    "visibility.private": "非公開",
+    "visibility.org_only": "組織限定",
+    "visibility.scout_visible": "スカウト公開",
+    "visibility.public": "公開",
+
+    // Record form
+    "form.draft": "下書き",
+    "form.confirmed": "確定済",
+    "form.placeholder": "事実を記録する。評価や感情は含めない。",
+    "form.attach_image": "画像添付",
+    "form.confirming": "確定中...",
+    "form.confirm": "確定する",
+    "form.warning": "確定後は削除・編集できません。時刻はサーバ側で付与されます。",
+
+    // Landing
+    "landing.title": "Epoch",
+    "landing.login": "登録 / ログイン",
+    "landing.headline": "判断と行為を、不可逆な時間の層として記録する",
+    "landing.desc1": "Epochは評価しません。要約しません。最適化しません。",
+    "landing.desc2": "扱うのは「事実が起きたこと」と「起きなかったこと」だけ。",
+    "landing.desc3": "意味づけは、時間に委ねられます。",
+    "landing.principles_title": "絶対原則",
+    "landing.billing_title": "課金について",
+    "landing.billing1": "自分のEpochへの書き込みと閲覧は、常に無料です。",
+    "landing.billing2": "他人のEpochを判断材料として読む場合のみ、課金が発生します。",
+    "landing.billing3": "課金を停止しても、書き込みと自己閲覧は継続できます。履歴は失われません。",
+    "landing.start": "記録を始める",
+    "landing.consent": "登録することで、上記の原則に同意したものとみなされます",
+
+    // Epoch Features
+    "epoch.features_title": "Epochでできること",
+    "epoch.feature.record.title": "Recordを書く",
+    "epoch.feature.record.desc": "判断・行為・結果・内省を時間順に記録する。一度書いたら削除も編集もできない。",
+    "epoch.feature.view.title": "自分のEpochを見る",
+    "epoch.feature.view.desc": "過去の記録をタイムライン形式で閲覧。沈黙期間も可視化される。",
+    "epoch.feature.browse.title": "他人のEpochを見る",
+    "epoch.feature.browse.desc": "公開設定されたユーザーのEpochを閲覧。判断材料として活用できる。",
+    "epoch.feature.scout.title": "スカウトを送る・受ける",
+    "epoch.feature.scout.desc": "Epochを見て興味を持った人にコンタクト。履歴ベースの採用活動に。",
+    "epoch.feature.org.title": "組織Epochを作る",
+    "epoch.feature.org.desc": "チームや組織単位でEpochを管理。部門ごとの判断履歴を蓄積。",
+    
+    // Epoch Record Types
+    "epoch.record_types_title": "Recordの種類",
+    "epoch.record_type.decision": "判断",
+    "epoch.record_type.action": "行為",
+    "epoch.record_type.outcome": "結果",
+    "epoch.record_type.reflection": "内省",
+    "epoch.record_types_note": "すべてのRecordは時間順に記録され、削除・編集はできません",
+
+    // Principles
+    "principle.1.title": "履歴は削除できない",
+    "principle.1.desc": "一度記録された事実は、技術的に削除不可能です。運営者であっても例外ではありません。",
+    "principle.2.title": "履歴は書き換えられない",
+    "principle.2.desc": "過去の記録を修正・編集する手段は存在しません。訂正は新たな記録として追記されます。",
+    "principle.3.title": "時間順序は絶対",
+    "principle.3.desc": "すべての記録はサーバ時刻で確定されます。順序の入れ替えや遡及は不可能です。",
+    "principle.4.title": "評価・スコア・要約を行わない",
+    "principle.4.desc": "Epochは事実を記録するだけです。意味づけは未来と、読む人に委ねられます。",
+    "principle.5.title": "沈黙も履歴として扱う",
+    "principle.5.desc": "何も記録しなかった期間も、沈黙として残ります。不在は欠損ではありません。",
+    "principle.6.title": "クライアントの違いで意味が変わらない",
+    "principle.6.desc": "Web、モバイル、どの環境から見ても同一の事実が表示されます。",
+
+    // Auth
+    "auth.title": "認証",
+    "auth.passkey_desc": "Passkeyで認証します。デバイスに紐づいた生体認証またはPINを使用します。",
+    "auth.passkey_button": "Passkeyで認証",
+    "auth.magiclink_label": "メールアドレス",
+    "auth.magiclink_button": "Magic Linkを送信",
+    "auth.magiclink_sent": "メールを送信しました。リンクをクリックして認証してください。",
+    "auth.recommended": "（推奨）",
+    "auth.backup": "補助手段",
+
+    // User directory
+    "directory.title": "ユーザー一覧",
+    "directory.desc": "スカウト可能なユーザーを検索",
+    "directory.search": "名前で検索...",
+    "directory.industry": "すべての業種",
+    "directory.region": "すべての地域",
+    "directory.sort": "並び替え",
+    "directory.sort.newest": "登録日（新しい順）",
+    "directory.sort.oldest": "登録日（古い順）",
+    "directory.sort.name_asc": "名前（A-Z）",
+    "directory.sort.name_desc": "名前（Z-A）",
+    "directory.sort.records_desc": "Record数（多い順）",
+    "directory.sort.records_asc": "Record数（少い順）",
+    "directory.records_filter": "Record数で絞り込み",
+    "directory.records_note": "※内容の評価ではなく情報量の事実です",
+    "directory.records_count": "件のRecord",
+    "directory.view_epoch": "Epochを見る",
+    "directory.send_scout": "スカウトを送る",
+    "directory.no_results": "該当するユーザーが見つかりません",
+    "directory.try_different": "検索条件を変更してみてください",
+
+    // Industries
+    "industry.tech": "テクノロジー",
+    "industry.finance": "金融",
+    "industry.healthcare": "医療",
+    "industry.education": "教育",
+    "industry.creative": "クリエイティブ",
+    "industry.consulting": "コンサルティング",
+
+    // Regions
+    "region.asia": "アジア",
+    "region.europe": "ヨーロッパ",
+    "region.north_america": "北米",
+    "region.south_america": "南米",
+    "region.africa": "アフリカ",
+    "region.oceania": "オセアニア",
+
+    // Scout
+    "scout.title": "スカウト",
+    "scout.inbox": "受信箱",
+    "scout.sent": "送信済み",
+    "scout.message": "一回来て、仕事を一緒にやってみませんか？",
+    "scout.from": "からのスカウト",
+    "scout.to": "へのスカウト",
+    "scout.accept": "承認",
+    "scout.decline": "辞退",
+    "scout.pending": "保留中",
+    "scout.accepted": "承認済み",
+    "scout.declined": "辞退済み",
+    "scout.empty_inbox": "スカウトはまだありません",
+    "scout.empty_sent": "送信したスカウトはありません",
+    "scout.send_title": "スカウトを送信",
+    "scout.send_desc": "Epochでは固定文言のみ送信できます。カスタムメッセージは禁止されています。",
+    "scout.send_button": "この招待を送信する",
+    "scout.cancel": "キャンセル",
+    "scout.receive_title": "スカウトを受信",
+    "scout.receive_desc": "この招待を受け入れますか？",
+
+    // Payment
+    "payment.title": "閲覧権限の取得",
+    "payment.desc": "他のユーザーのEpochを閲覧するには課金が必要です",
+    "payment.time_window": "Time Window",
+    "payment.time_window_desc": "特定の期間のRecordを閲覧",
+    "payment.read_session": "Read Session",
+    "payment.read_session_desc": "一定時間、全Recordを閲覧可能",
+    "payment.select_period": "期間を選択",
+    "payment.1month": "過去1ヶ月",
+    "payment.3months": "過去3ヶ月",
+    "payment.6months": "過去6ヶ月",
+    "payment.1year": "過去1年",
+    "payment.all": "全期間",
+    "payment.select_duration": "時間を選択",
+    "payment.1hour": "1時間",
+    "payment.24hours": "24時間",
+    "payment.1week": "1週間",
+    "payment.price": "金額",
+    "payment.confirm": "確認画面へ",
+    "payment.confirm_title": "支払いの確認",
+    "payment.confirm_desc": "以下の内容で課金を確定します",
+    "payment.target": "対象ユーザー",
+    "payment.type": "閲覧タイプ",
+    "payment.period": "期間",
+    "payment.pay": "支払いを確定",
+    "payment.cancel": "キャンセル",
+    "payment.processing": "処理中...",
+
+    // Profile
+    "profile.title": "プロフィール設定",
+    "profile.note": "これらの情報は履歴を持ちません。いつでも変更可能です。",
+    "profile.avatar": "アバター",
+    "profile.avatar_change": "変更",
+    "profile.display_name": "表示名",
+    "profile.bio": "自己紹介",
+    "profile.bio_placeholder": "簡単な自己紹介（任意）",
+    "profile.save": "保存",
+    "profile.saving": "保存中...",
+
+    // Settings
+    "settings.title": "設定",
+    "settings.profile": "プロフィール",
+    "settings.billing": "課金履歴",
+    "settings.audit": "監査ログ",
+    "settings.export": "データエクスポート",
+
+    // Export
+    "export.title": "データエクスポート",
+    "export.desc": "すべてのEpochRecordをダウンロードします。",
+    "export.format": "エクスポート形式",
+    "export.button": "エクスポート",
+    "export.exporting": "エクスポート中...",
+
+    // Recovery
+    "recovery.title": "アカウント復旧",
+    "recovery.desc": "アカウントを復旧すると、auth_recovered Recordが生成されます。",
+    "recovery.email": "登録メールアドレス",
+    "recovery.button": "復旧リンクを送信",
+    "recovery.sent": "復旧リンクを送信しました。メールを確認してください。",
+
+    // Final confirmation
+    "confirm.title": "最終確認",
+    "confirm.warning": "この操作は取り消せません",
+    "confirm.desc": "以下のRecordを確定します。確定後は削除・編集できません。",
+    "confirm.type": "記録タイプ",
+    "confirm.content": "内容",
+    "confirm.cancel": "キャンセル",
+    "confirm.submit": "確定する",
+
+    // Offline
+    "offline.message": "オフラインです。下書きのみ保存できます。",
+
+    // Stats
+    "stats.total_records": "総Record数",
+    "stats.since": "記録開始",
+    "stats.public_records": "公開Record",
+    "stats.fact_only": "※事実の集計のみ、評価は行いません",
+
+    // Timeline
+    "timeline.title": "タイムライン",
+    "timeline.no_records": "まだ記録がありません",
+    "timeline.start_recording": "最初のRecordを作成して、あなたの時間の層を始めましょう。",
+
+    // User epoch view
+    "user.epoch_of": "のEpoch",
+    "user.no_access": "このユーザーのEpochを閲覧する権限がありません",
+    "user.get_access": "閲覧権限を取得",
+    "user.access_type": "アクセス権",
+    "user.expires": "有効期限",
+
+    // Audit log
+    "audit.title": "監査ログ",
+    "audit.desc": "あなたのすべての操作履歴",
+    "audit.action": "操作",
+    "audit.timestamp": "日時",
+    "audit.details": "詳細",
+
+    // Billing history
+    "billing.title": "課金履歴",
+    "billing.no_history": "課金履歴はありません",
+    "billing.target": "対象",
+    "billing.type": "タイプ",
+    "billing.amount": "金額",
+    "billing.date": "日付",
+    "billing.status": "状態",
+
+    // Footer
+    "footer.principles": "原則",
+    "footer.terms": "利用規約",
+    "footer.privacy": "プライバシー",
+    "footer.copyright": "すべての記録は不可逆です",
+
+    // Site (koichinishizuka.com)
+    "site.name": "Koichi Nishizuka",
+    "site.hero_title": "仕様の棚",
+    "site.hero_subtitle": "買う前に、理解するための場所",
+    "site.go_to_library": "Library へ",
+    "site.nav.library": "Library",
+    "site.nav.notes": "Notes",
+    "site.nav.about": "About",
+    "site.nav.contact": "Contact",
+    "site.featured_title": "Featured Libraries",
+    "site.recent_notes": "Recent Notes",
+    "site.view_all_notes": "すべてのNotesを見る",
+    "site.library_title": "Library",
+    "site.library_desc": "すべてのプロダクト仕様を棚として提示する",
+    "site.handles": "扱うもの",
+    "site.not_handles": "扱わないもの",
+    "site.view_spec": "Spec",
+    "site.view_value": "Value",
+    "site.view_mvp": "MVP",
+    "site.status.draft": "Draft",
+    "site.status.final": "Final",
+    "site.status.deprecated": "Deprecated",
+    "site.detail.definition": "Definition",
+    "site.detail.non_goals": "Non-Goals",
+    "site.detail.artifacts": "Artifacts",
+    "site.detail.integration": "Integration Stance",
+    "site.detail.status": "Status",
+    "site.spec.toc": "目次",
+    "site.spec.back_to_toc": "目次へ戻る",
+    "site.notes_title": "Notes",
+    "site.notes_desc": "思考メモと周辺文章",
+    "site.no_notes": "まだNotesはありません",
+    "site.about_title": "About",
+    "site.about_author": "作者について",
+    "site.about_philosophy": "設計思想",
+    "site.contact_title": "Contact",
+    "site.contact_desc": "連絡方法",
+    "site.contact_email": "メールで連絡",
+
+    // Product definitions
+    "product.sigil.name": "Sigil",
+    "product.sigil.definition": "場に適用される前提条件を、術式として事前に明示する",
+    "product.sigil.handles": "術式、前提条件、事前開示",
+    "product.sigil.not_handles": "教育、育成、評価",
+    "product.epoch.name": "Epoch",
+    "product.epoch.definition": "判断と行為を、不可逆な時間の層として記録する",
+    "product.epoch.handles": "事実、時間、不変性",
+    "product.epoch.not_handles": "評価、要約、最適化",
+    "product.talisman.name": "Talisman",
+    "product.talisman.definition": "オンライン人格に一意なIDを付与し、中立的な観測シグナルを提供する",
+    "product.talisman.handles": "観測、統合、数値化",
+    "product.talisman.not_handles": "評価、制裁、判断",
+    "product.pact.name": "Pact",
+    "product.pact.definition": "雇用・報酬・契約状態遷移を、事前定義された条件によって確定させる",
+    "product.pact.handles": "状態遷移、閾値、レポート生成",
+    "product.pact.not_handles": "人格評価、感情的表現、裁量判断",
+
+    // Talisman
+    "talisman.title": "Talisman",
+    "talisman.logout": "ログアウト",
+    "talisman.subtitle": "Online Identity Observation Infrastructure",
+    "talisman.landing.headline": "同一人物性を、観測する",
+    "talisman.landing.desc1": "Talismanは評価しません。制裁しません。判断しません。",
+    "talisman.landing.desc2": "扱うのは「観測点の数」と「状態フラグ」だけ。",
+    "talisman.landing.desc3": "意味づけは、利用する側に委ねられます。",
+    "talisman.landing.start": "新規登録",
+    "talisman.landing.login_btn": "ログイン",
+    "talisman.landing.consent": "登録することで、上記の原則に同意したものとみなされます",
+    "talisman.landing.how_it_works": "仕組み",
+    "talisman.landing.step1_title": "認証手段を登録",
+    "talisman.landing.step1_desc": "複数の認証手段を登録してスコアを上げる",
+    "talisman.landing.step2_title": "ログイン方式を選択",
+    "talisman.landing.step2_desc": "登録した認証手段のうち1つまたは複数でログイン",
+    "talisman.landing.step3_title": "連携サービスを利用",
+    "talisman.landing.step3_desc": "Epoch、Sigil、Pactなどに統一IDでアクセス",
+    "talisman.landing.supported_credentials": "対応する認証手段",
+    "talisman.landing.cta_desc": "TalismanはEpoch、Sigil、Pactの認証基盤です。すべてのサービスに統一IDでアクセスできます。",
+
+    // Talisman Principles
+    "talisman.principle.1.title": "常に中立",
+    "talisman.principle.1.desc": "Talismanは判断・制裁・推奨・結論を一切行いません。観測結果のみを返します。",
+    "talisman.principle.2.title": "出力は数値と状態のみ",
+    "talisman.principle.2.desc": "score（Credential数）とflags（存在状態）のみを出力します。評価語は使用しません。",
+    "talisman.principle.3.title": "Credentialに強弱なし",
+    "talisman.principle.3.desc": "すべての認証方式は等価な独立観測点として扱われます。種類による優劣は存在しません。",
+    "talisman.principle.4.title": "生データは保持しない",
+    "talisman.principle.4.desc": "個人を直接特定できる生データは保存しません。一致判定は正規化済みハッシュのみで行います。",
+    "talisman.principle.5.title": "撤回は再計算を意味する",
+    "talisman.principle.5.desc": "Credentialの撤回は可能です。撤回後、scoreは再計算されます。",
+    "talisman.principle.6.title": "判断は利用側の責務",
+    "talisman.principle.6.desc": "ログイン可否、機能制限、利用条件の判断は、常にTalismanを利用するプロダクト側が行います。",
+
+    // Talisman Dashboard
+    "talisman.dashboard": "ダッシュボード",
+    "talisman.person_id": "Person ID",
+    "talisman.score": "Score",
+    "talisman.score_desc": "有効なCredentialの数",
+    "talisman.flags": "Flags",
+    "talisman.flags_desc": "存在状態を示すブール値",
+    "talisman.credentials": "Credentials",
+    "talisman.credentials_desc": "登録済みの認証証拠",
+    "talisman.events": "Events",
+    "talisman.events_desc": "すべての状態変化の記録",
+    "talisman.no_credentials": "Credentialがありません",
+    "talisman.add_credential": "Credentialを追加",
+    "talisman.revoke": "撤回",
+    "talisman.revoked": "撤回済み",
+    "talisman.active": "有効",
+
+    // Credential types
+    "talisman.cred.email_magiclink": "Email (Magic Link)",
+    "talisman.cred.phone_otp": "Phone (OTP)",
+    "talisman.cred.oauth_google": "Google",
+    "talisman.cred.oauth_apple": "Apple",
+    "talisman.cred.oauth_microsoft": "Microsoft",
+    "talisman.cred.oauth_x": "X (Twitter)",
+    "talisman.cred.passkey": "Passkey",
+    "talisman.cred.payment_card": "Payment Card",
+
+    // Talisman Events
+    "talisman.event.person_created": "Person作成",
+    "talisman.event.credential_added": "Credential追加",
+    "talisman.event.credential_revoked": "Credential撤回",
+
+    // Talisman Settings
+    "talisman.billing": "課金",
+    "talisman.settings": "設定",
+    "talisman.settings.auth_methods": "認証方式",
+    "talisman.settings.auth_methods_desc": "利用可能な認証方式を設定",
+    "talisman.settings.auto": "Auto（すべて許可）",
+    "talisman.settings.auto_desc": "ユーザーは任意の認証方式を選択可能",
+    "talisman.settings.restricted": "制限あり",
+    "talisman.settings.restricted_desc": "特定の認証方式のみ許可",
+
+    // Talisman Integration
+    "talisman.integration": "統合",
+    "talisman.integration.title": "プロダクト統合",
+    "talisman.integration.desc": "Talismanを統合ログイン基盤として利用",
+    "talisman.integration.api_key": "API Key",
+    "talisman.integration.webhook": "Webhook URL",
+    "talisman.integration.policy": "Policy",
+    "talisman.integration.policy_desc": "scoreとflagsに基づく条件を設定",
+
+    // Sigil
+    "sigil.title": "Sigil",
+    "sigil.subtitle": "Environment Pre-Learning Specification Platform",
+    "sigil.landing.headline": "術式を、事前に開示する",
+    "sigil.landing.desc1": "Sigilは教育しません。育成しません。評価しません。",
+    "sigil.landing.desc2": "扱うのは「術式として固定された前提条件」だけ。",
+    "sigil.landing.desc3": "理解するかどうかは、参加者に委ねられます。",
+    "sigil.landing.start": "術式を構築する",
+    "sigil.landing.consent": "登録することで、上記の原則に同意したものとみなされます",
+
+    // Sigil Principles
+    "sigil.principle.1.title": "人の内面は扱わない",
+    "sigil.principle.1.desc": "動機、価値観、感情を扱いません。判断はすべて「術式への適合／不適合」として行います。",
+    "sigil.principle.2.title": "公開をもって開示完了",
+    "sigil.principle.2.desc": "読める状態で公開されていることをもって、術式は発動前に開示されたものとみなされます。",
+    "sigil.principle.3.title": "読まないは選択",
+    "sigil.principle.3.desc": "読まなかったことは理解不足ではなく、術式理解を優先しなかったという選択として扱います。",
+    "sigil.principle.4.title": "説明義務は公開で完了",
+    "sigil.principle.4.desc": "術式構築者の説明責任は、術式が公開されていることをもって完了します。",
+    "sigil.principle.5.title": "感情的配慮は術式外",
+    "sigil.principle.5.desc": "感情的配慮、補足説明、口頭フォローは、術式の効力範囲外に置かれます。",
+    "sigil.principle.6.title": "不適合は合理的判断",
+    "sigil.principle.6.desc": "術式不適合による不採用・非参画は、能力評価ではなく合理的判断として成立します。",
+
+    // Sigil Dashboard
+    "sigil.dashboard": "ダッシュボード",
+    "sigil.spaces": "スペース",
+    "sigil.spaces_desc": "管理する場の一覧",
+    "sigil.create_space": "スペースを作成",
+    "sigil.no_spaces": "スペースがありません",
+
+    // Sigil Space
+    "sigil.space.purpose": "目的",
+    "sigil.space.decisions": "想定される判断",
+    "sigil.space.done_strictness": "Done条件の厳しさ",
+    "sigil.space.responsibility": "責任範囲",
+    "sigil.space.view_toc": "目次を見る",
+
+    // Sigil TOC (Table of Contents)
+    "sigil.toc.title": "目次",
+    "sigil.toc.unread": "未読",
+    "sigil.toc.read": "読了",
+    "sigil.chapter.prerequisites": "術式の前提条件",
+    "sigil.chapter.activation": "発動条件",
+    "sigil.chapter.daily_decisions": "日常的に発生する判断",
+    "sigil.chapter.done": "完了条件（Done定義）",
+    "sigil.chapter.boundaries": "権限と責任の境界",
+    "sigil.chapter.exceptions": "例外・逸脱時の扱い",
+
+    // Sigil Chapter
+    "sigil.chapter.back_to_toc": "目次に戻る",
+    "sigil.chapter.next": "次の章へ",
+    "sigil.chapter.scope": "適用範囲",
+
+    // Sigil Adopted
+    "sigil.adopted": "採用した術式",
+
+    // Sigil Analytics
+    "sigil.analytics": "分析",
+
+    // Sigil Explore
+    "sigil.explore": "探索",
+    "sigil.explore.title": "公開されている術式",
+    "sigil.explore.desc": "他の組織が公開している術式を閲覧・採用できます",
+    "sigil.explore.search": "術式を検索...",
+    "sigil.explore.adopt": "採用する",
+    "sigil.explore.adopted": "採用済み",
+    "sigil.explore.adopt_confirm": "この術式を自社マニュアルとして採用しますか？",
+    "sigil.explore.adopt_desc": "採用した術式は「社内限定」としてスペースに追加されます。内容は自由に編集できます。",
+    "sigil.explore.view": "閲覧",
+    "sigil.explore.author": "作成者",
+    "sigil.explore.chapters": "章",
+    "sigil.explore.adopted_count": "採用数",
+    "sigil.explore.category": "カテゴリ",
+    "sigil.explore.all_categories": "すべて",
+
+    // Pact
+    "pact.dashboard": "ダッシュボード",
+    "pact.contracts": "契約",
+    "pact.employees": "被雇用者",
+    "pact.thresholds": "閾値設定",
+    "pact.reports": "レポート",
+    "pact.settings": "設定",
+    "pact.landing.title": "Pact",
+    "pact.landing.subtitle": "雇用・報酬・契約状態遷移インフラ",
+    "pact.landing.desc": "昇給や解雇を、恣意的・政治的な判断から切り離し、事前に定義された条件とデータによって状態遷移として確定させる。",
+    "pact.landing.start": "はじめる",
+    "pact.state.growth": "Growth（昇給候補）",
+    "pact.state.stable": "Stable（維持）",
+    "pact.state.warning": "Warning（警告）",
+    "pact.state.critical": "Critical（危機）",
+    "pact.state.exit": "Exit（契約終了）",
+    "pact.ledger": "Ledger",
+    "pact.ledger.desc": "実績ログ層 - 数値、期間、測定方法のみで継続的に記録",
+    "pact.ledger.title": "Ledger Layer",
+    "pact.threshold": "Threshold Engine",
+    "pact.threshold.desc": "閾値・状態遷移エンジン - 条件到達で自動的に状態遷移",
+    "pact.output": "Decision Output",
+    "pact.output.desc": "決定出力層 - 報酬改定通知、役割維持通知、契約終了レポートを自動生成",
+    "pact.principle.1": "人格評価を行わない",
+    "pact.principle.2": "感情的表現を保存しない",
+    "pact.principle.3": "基準を事後的に変更しない",
+    "pact.principle.4": "昇給や解雇を裁量判断にしない",
+    "pact.principle.5": "即日解雇を前提に設計しない",
+    "pact.principle.6": "次の世界線を提示せずに契約を終了しない",
+    "pact.transitions": "状態遷移",
+    "pact.my": "マイページ",
+
+    // Sigil Settings
+    "sigil.settings": "設定",
+    "sigil.settings.visibility": "公開設定",
+    "sigil.settings.public": "Public（誰でも閲覧可能）",
+    "sigil.settings.private": "Private（URLを知る人のみ）",
+
+    // Common
+    "common.loading": "読み込み中...",
+    "common.error": "エラーが発生しました",
+    "common.close": "閉じる",
+    "common.back": "戻る",
+  },
+  en: {
+    // Header
+    "header.principles": "Principles",
+    "header.browse": "Browse",
+    "header.scout": "Scout",
+    "header.recording": "Recording",
+    "header.login": "Register / Login",
+
+    // Record types
+    "record.decision_made": "Decision made",
+    "record.decision_not_made": "Decision not made",
+    "record.revised": "Revised",
+    "record.period_of_silence": "Period of silence",
+
+    // Visibility
+    "visibility.private": "Private",
+    "visibility.org_only": "Org only",
+    "visibility.scout_visible": "Scout visible",
+    "visibility.public": "Public",
+
+    // Record form
+    "form.draft": "Draft",
+    "form.confirmed": "Confirmed",
+    "form.placeholder": "Record facts. No evaluations or emotions.",
+    "form.attach_image": "Attach image",
+    "form.confirming": "Confirming...",
+    "form.confirm": "Confirm",
+    "form.warning": "Cannot be deleted or edited after confirmation. Timestamp is assigned by server.",
+
+    // Landing
+    "landing.title": "Epoch",
+    "landing.login": "Register / Login",
+    "landing.headline": "Record decisions and actions as immutable layers of time",
+    "landing.desc1": "Epoch does not evaluate. Does not summarize. Does not optimize.",
+    "landing.desc2": "It only handles what happened and what did not happen.",
+    "landing.desc3": "Meaning is left to time.",
+    "landing.principles_title": "Absolute Principles",
+    "landing.billing_title": "About Billing",
+    "landing.billing1": "Writing and viewing your own Epoch is always free.",
+    "landing.billing2": "Billing only occurs when reading others' Epoch for reference.",
+    "landing.billing3": "Even if billing stops, writing and self-viewing continues. Records are never lost.",
+    "landing.start": "Start Recording",
+    "landing.consent": "By registering, you agree to the above principles",
+
+    // Epoch Features
+    "epoch.features_title": "What You Can Do with Epoch",
+    "epoch.feature.record.title": "Write Records",
+    "epoch.feature.record.desc": "Record decisions, actions, outcomes, and reflections chronologically. Once written, cannot be deleted or edited.",
+    "epoch.feature.view.title": "View Your Epoch",
+    "epoch.feature.view.desc": "Browse past records in timeline format. Silence periods are also visualized.",
+    "epoch.feature.browse.title": "View Others' Epochs",
+    "epoch.feature.browse.desc": "Browse Epochs of users with public settings. Use as reference for decisions.",
+    "epoch.feature.scout.title": "Send & Receive Scouts",
+    "epoch.feature.scout.desc": "Contact people whose Epoch interests you. For history-based recruitment.",
+    "epoch.feature.org.title": "Create Organization Epochs",
+    "epoch.feature.org.desc": "Manage Epochs at team or organization level. Accumulate departmental decision history.",
+    
+    // Epoch Record Types
+    "epoch.record_types_title": "Record Types",
+    "epoch.record_type.decision": "Decision",
+    "epoch.record_type.action": "Action",
+    "epoch.record_type.outcome": "Outcome",
+    "epoch.record_type.reflection": "Reflection",
+    "epoch.record_types_note": "All records are logged chronologically and cannot be deleted or edited",
+
+    // Principles
+    "principle.1.title": "History cannot be deleted",
+    "principle.1.desc": "Once recorded, facts are technically impossible to delete. Even operators are no exception.",
+    "principle.2.title": "History cannot be rewritten",
+    "principle.2.desc": "There is no way to modify or edit past records. Corrections are appended as new records.",
+    "principle.3.title": "Time order is absolute",
+    "principle.3.desc": "All records are finalized by server time. Reordering or retroactive changes are impossible.",
+    "principle.4.title": "No evaluation, scoring, or summarization",
+    "principle.4.desc": "Epoch only records facts. Meaning is left to the future and the reader.",
+    "principle.5.title": "Silence is also treated as history",
+    "principle.5.desc": "Periods without records remain as silence. Absence is not a defect.",
+    "principle.6.title": "Meaning does not change across clients",
+    "principle.6.desc": "The same facts are displayed regardless of Web, mobile, or any environment.",
+
+    // Auth
+    "auth.title": "Authentication",
+    "auth.passkey_desc": "Authenticate with Passkey. Uses biometrics or PIN tied to your device.",
+    "auth.passkey_button": "Authenticate with Passkey",
+    "auth.magiclink_label": "Email address",
+    "auth.magiclink_button": "Send Magic Link",
+    "auth.magiclink_sent": "Email sent. Click the link to authenticate.",
+    "auth.recommended": "(Recommended)",
+    "auth.backup": "Backup method",
+
+    // User directory
+    "directory.title": "User Directory",
+    "directory.desc": "Search for users available for scouting",
+    "directory.search": "Search by name...",
+    "directory.industry": "All industries",
+    "directory.region": "All regions",
+    "directory.sort": "Sort by",
+    "directory.sort.newest": "Registration (Newest)",
+    "directory.sort.oldest": "Registration (Oldest)",
+    "directory.sort.name_asc": "Name (A-Z)",
+    "directory.sort.name_desc": "Name (Z-A)",
+    "directory.sort.records_desc": "Records (Most)",
+    "directory.sort.records_asc": "Records (Least)",
+    "directory.records_filter": "Filter by record count",
+    "directory.records_note": "*This is quantity of information, not evaluation of content",
+    "directory.records_count": "Records",
+    "directory.view_epoch": "View Epoch",
+    "directory.send_scout": "Send Scout",
+    "directory.no_results": "No users found",
+    "directory.try_different": "Try changing your search criteria",
+
+    // Industries
+    "industry.tech": "Technology",
+    "industry.finance": "Finance",
+    "industry.healthcare": "Healthcare",
+    "industry.education": "Education",
+    "industry.creative": "Creative",
+    "industry.consulting": "Consulting",
+
+    // Regions
+    "region.asia": "Asia",
+    "region.europe": "Europe",
+    "region.north_america": "North America",
+    "region.south_america": "South America",
+    "region.africa": "Africa",
+    "region.oceania": "Oceania",
+
+    // Scout
+    "scout.title": "Scout",
+    "scout.inbox": "Inbox",
+    "scout.sent": "Sent",
+    "scout.message": "Would you like to come and work together?",
+    "scout.from": "Scout from",
+    "scout.to": "Scout to",
+    "scout.accept": "Accept",
+    "scout.decline": "Decline",
+    "scout.pending": "Pending",
+    "scout.accepted": "Accepted",
+    "scout.declined": "Declined",
+    "scout.empty_inbox": "No scouts yet",
+    "scout.empty_sent": "No sent scouts",
+    "scout.send_title": "Send Scout",
+    "scout.send_desc": "Epoch only allows fixed messages. Custom messages are prohibited.",
+    "scout.send_button": "Send this invitation",
+    "scout.cancel": "Cancel",
+    "scout.receive_title": "Received Scout",
+    "scout.receive_desc": "Do you want to accept this invitation?",
+
+    // Payment
+    "payment.title": "Get Access",
+    "payment.desc": "Payment is required to view other users' Epoch",
+    "payment.time_window": "Time Window",
+    "payment.time_window_desc": "View records from a specific period",
+    "payment.read_session": "Read Session",
+    "payment.read_session_desc": "View all records for a limited time",
+    "payment.select_period": "Select period",
+    "payment.1month": "Past 1 month",
+    "payment.3months": "Past 3 months",
+    "payment.6months": "Past 6 months",
+    "payment.1year": "Past 1 year",
+    "payment.all": "All time",
+    "payment.select_duration": "Select duration",
+    "payment.1hour": "1 hour",
+    "payment.24hours": "24 hours",
+    "payment.1week": "1 week",
+    "payment.price": "Price",
+    "payment.confirm": "Confirm",
+    "payment.confirm_title": "Confirm Payment",
+    "payment.confirm_desc": "Confirm billing with the following details",
+    "payment.target": "Target user",
+    "payment.type": "Access type",
+    "payment.period": "Period",
+    "payment.pay": "Confirm Payment",
+    "payment.cancel": "Cancel",
+    "payment.processing": "Processing...",
+
+    // Profile
+    "profile.title": "Profile Settings",
+    "profile.note": "This information has no history. Can be changed anytime.",
+    "profile.avatar": "Avatar",
+    "profile.avatar_change": "Change",
+    "profile.display_name": "Display name",
+    "profile.bio": "Bio",
+    "profile.bio_placeholder": "Brief introduction (optional)",
+    "profile.save": "Save",
+    "profile.saving": "Saving...",
+
+    // Settings
+    "settings.title": "Settings",
+    "settings.profile": "Profile",
+    "settings.billing": "Billing History",
+    "settings.audit": "Audit Log",
+    "settings.export": "Data Export",
+
+    // Export
+    "export.title": "Data Export",
+    "export.desc": "Download all your EpochRecords.",
+    "export.format": "Export format",
+    "export.button": "Export",
+    "export.exporting": "Exporting...",
+
+    // Recovery
+    "recovery.title": "Account Recovery",
+    "recovery.desc": "Recovering your account will generate an auth_recovered Record.",
+    "recovery.email": "Registered email",
+    "recovery.button": "Send recovery link",
+    "recovery.sent": "Recovery link sent. Please check your email.",
+
+    // Final confirmation
+    "confirm.title": "Final Confirmation",
+    "confirm.warning": "This action cannot be undone",
+    "confirm.desc": "Confirm the following Record. Cannot be deleted or edited after confirmation.",
+    "confirm.type": "Record type",
+    "confirm.content": "Content",
+    "confirm.cancel": "Cancel",
+    "confirm.submit": "Confirm",
+
+    // Offline
+    "offline.message": "Offline. Only drafts can be saved.",
+
+    // Stats
+    "stats.total_records": "Total Records",
+    "stats.since": "Recording since",
+    "stats.public_records": "Public Records",
+    "stats.fact_only": "*Only factual aggregation, no evaluation",
+
+    // Timeline
+    "timeline.title": "Timeline",
+    "timeline.no_records": "No records yet",
+    "timeline.start_recording": "Create your first Record and start your layers of time.",
+
+    // User epoch view
+    "user.epoch_of": "'s Epoch",
+    "user.no_access": "You don't have permission to view this user's Epoch",
+    "user.get_access": "Get Access",
+    "user.access_type": "Access Type",
+    "user.expires": "Expires",
+
+    // Audit log
+    "audit.title": "Audit Log",
+    "audit.desc": "All your operation history",
+    "audit.action": "Action",
+    "audit.timestamp": "Timestamp",
+    "audit.details": "Details",
+
+    // Billing history
+    "billing.title": "Billing History",
+    "billing.no_history": "No billing history",
+    "billing.target": "Target",
+    "billing.type": "Type",
+    "billing.amount": "Amount",
+    "billing.date": "Date",
+    "billing.status": "Status",
+
+    // Footer
+    "footer.principles": "Principles",
+    "footer.terms": "Terms",
+    "footer.privacy": "Privacy",
+    "footer.copyright": "All records are immutable",
+
+    // Site (koichinishizuka.com)
+    "site.name": "Koichi Nishizuka",
+    "site.hero_title": "Specification Library",
+    "site.hero_subtitle": "A place to understand before you buy",
+    "site.go_to_library": "Go to Library",
+    "site.nav.library": "Library",
+    "site.nav.notes": "Notes",
+    "site.nav.about": "About",
+    "site.nav.contact": "Contact",
+    "site.featured_title": "Featured Libraries",
+    "site.recent_notes": "Recent Notes",
+    "site.view_all_notes": "View all Notes",
+    "site.library_title": "Library",
+    "site.library_desc": "All product specifications presented as a shelf",
+    "site.handles": "Handles",
+    "site.not_handles": "Does not handle",
+    "site.view_spec": "Spec",
+    "site.view_value": "Value",
+    "site.view_mvp": "MVP",
+    "site.status.draft": "Draft",
+    "site.status.final": "Final",
+    "site.status.deprecated": "Deprecated",
+    "site.detail.definition": "Definition",
+    "site.detail.non_goals": "Non-Goals",
+    "site.detail.artifacts": "Artifacts",
+    "site.detail.integration": "Integration Stance",
+    "site.detail.status": "Status",
+    "site.spec.toc": "Table of Contents",
+    "site.spec.back_to_toc": "Back to TOC",
+    "site.notes_title": "Notes",
+    "site.notes_desc": "Thoughts and peripheral writings",
+    "site.no_notes": "No notes yet",
+    "site.about_title": "About",
+    "site.about_author": "About the Author",
+    "site.about_philosophy": "Design Philosophy",
+    "site.contact_title": "Contact",
+    "site.contact_desc": "How to reach me",
+    "site.contact_email": "Contact via Email",
+
+    // Product definitions
+    "product.sigil.name": "Sigil",
+    "product.sigil.definition": "Pre-disclose prerequisites applied to environments as specifications",
+    "product.sigil.handles": "Specifications, Prerequisites, Pre-disclosure",
+    "product.sigil.not_handles": "Education, Development, Evaluation",
+    "product.epoch.name": "Epoch",
+    "product.epoch.definition": "Record decisions and actions as immutable layers of time",
+    "product.epoch.handles": "Facts, Time, Immutability",
+    "product.epoch.not_handles": "Evaluation, Summary, Optimization",
+    "product.talisman.name": "Talisman",
+    "product.talisman.definition": "Assign unique IDs to online personas and provide neutral observation signals",
+    "product.talisman.handles": "Observation, Integration, Quantification",
+    "product.talisman.not_handles": "Evaluation, Sanctions, Judgment",
+    "product.pact.name": "Pact",
+    "product.pact.definition": "Handle state transitions of contracts and promises",
+    "product.pact.handles": "Contract, State, Transition",
+    "product.pact.not_handles": "Evaluation, Recommendation, Optimization",
+
+  // Talisman
+  "talisman.title": "Talisman",
+  "talisman.logout": "Logout",
+  "talisman.subtitle": "Online Identity Observation Infrastructure",
+  "talisman.landing.headline": "Observe identity sameness",
+    "talisman.landing.desc1": "Talisman does not evaluate. Does not sanction. Does not judge.",
+    "talisman.landing.desc2": "It handles only 'number of observation points' and 'state flags'.",
+    "talisman.landing.desc3": "Meaning is delegated to the consumer.",
+    "talisman.landing.start": "Register",
+    "talisman.landing.login_btn": "Login",
+    "talisman.landing.consent": "By registering, you agree to the principles above",
+    "talisman.landing.how_it_works": "How It Works",
+    "talisman.landing.step1_title": "Register Credentials",
+    "talisman.landing.step1_desc": "Add multiple auth methods to increase your score",
+    "talisman.landing.step2_title": "Choose Login Method",
+    "talisman.landing.step2_desc": "Login with one or more of your registered credentials",
+    "talisman.landing.step3_title": "Access Services",
+    "talisman.landing.step3_desc": "Access Epoch, Sigil, Pact with unified ID",
+    "talisman.landing.supported_credentials": "Supported Credentials",
+    "talisman.landing.cta_desc": "Talisman is the authentication infrastructure for Epoch, Sigil, and Pact. Access all services with a unified ID.",
+
+    // Talisman Principles
+    "talisman.principle.1.title": "Always neutral",
+    "talisman.principle.1.desc": "Talisman never makes judgments, sanctions, recommendations, or conclusions. It only returns observation results.",
+    "talisman.principle.2.title": "Output is only numbers and states",
+    "talisman.principle.2.desc": "Outputs only score (Credential count) and flags (existence states). No evaluative terms.",
+    "talisman.principle.3.title": "No hierarchy among Credentials",
+    "talisman.principle.3.desc": "All authentication methods are treated as equivalent independent observation points. No superiority by type.",
+    "talisman.principle.4.title": "No raw data retained",
+    "talisman.principle.4.desc": "Raw data that can directly identify individuals is not stored. Matching is done only with normalized hashes.",
+    "talisman.principle.5.title": "Revocation means recalculation",
+    "talisman.principle.5.desc": "Credentials can be revoked. After revocation, the score is recalculated.",
+    "talisman.principle.6.title": "Judgment is the consumer's responsibility",
+    "talisman.principle.6.desc": "Login permissions, feature restrictions, and usage conditions are always determined by the product using Talisman.",
+
+    // Talisman Dashboard
+    "talisman.dashboard": "Dashboard",
+    "talisman.person_id": "Person ID",
+    "talisman.score": "Score",
+    "talisman.score_desc": "Number of valid Credentials",
+    "talisman.flags": "Flags",
+    "talisman.flags_desc": "Boolean values indicating existence states",
+    "talisman.credentials": "Credentials",
+    "talisman.credentials_desc": "Registered authentication evidence",
+    "talisman.events": "Events",
+    "talisman.events_desc": "Record of all state changes",
+    "talisman.no_credentials": "No credentials",
+    "talisman.add_credential": "Add Credential",
+    "talisman.revoke": "Revoke",
+    "talisman.revoked": "Revoked",
+    "talisman.active": "Active",
+
+    // Credential types
+    "talisman.cred.email_magiclink": "Email (Magic Link)",
+    "talisman.cred.phone_otp": "Phone (OTP)",
+    "talisman.cred.oauth_google": "Google",
+    "talisman.cred.oauth_apple": "Apple",
+    "talisman.cred.oauth_microsoft": "Microsoft",
+    "talisman.cred.oauth_x": "X (Twitter)",
+    "talisman.cred.passkey": "Passkey",
+    "talisman.cred.payment_card": "Payment Card",
+
+    // Talisman Events
+    "talisman.event.person_created": "Person created",
+    "talisman.event.credential_added": "Credential added",
+    "talisman.event.credential_revoked": "Credential revoked",
+
+    // Talisman Settings
+    "talisman.settings": "Settings",
+    "talisman.settings.auth_methods": "Auth Methods",
+    "talisman.settings.auth_methods_desc": "Configure available authentication methods",
+    "talisman.settings.auto": "Auto (allow all)",
+    "talisman.settings.auto_desc": "Users can choose any authentication method",
+    "talisman.settings.restricted": "Restricted",
+    "talisman.settings.restricted_desc": "Allow only specific authentication methods",
+
+    // Talisman Integration
+    "talisman.integration": "Integration",
+    "talisman.integration.title": "Product Integration",
+    "talisman.integration.desc": "Use Talisman as unified login infrastructure",
+    "talisman.integration.api_key": "API Key",
+    "talisman.integration.webhook": "Webhook URL",
+    "talisman.integration.policy": "Policy",
+    "talisman.integration.policy_desc": "Set conditions based on score and flags",
+
+    // Sigil
+    "sigil.title": "Sigil",
+    "sigil.subtitle": "Environment Pre-Learning Specification Platform",
+    "sigil.landing.headline": "Pre-disclose specifications",
+    "sigil.landing.desc1": "Sigil does not educate. Does not develop. Does not evaluate.",
+    "sigil.landing.desc2": "It handles only 'prerequisites fixed as specifications'.",
+    "sigil.landing.desc3": "Understanding is delegated to the participant.",
+    "sigil.landing.start": "Build specifications",
+    "sigil.landing.consent": "By registering, you agree to the principles above",
+
+    // Sigil Principles
+    "sigil.principle.1.title": "No inner states handled",
+    "sigil.principle.1.desc": "Motives, values, and emotions are not handled. All judgments are made as 'conformity/non-conformity to specifications'.",
+    "sigil.principle.2.title": "Publication completes disclosure",
+    "sigil.principle.2.desc": "Being publicly readable means the specification is considered pre-disclosed before activation.",
+    "sigil.principle.3.title": "Not reading is a choice",
+    "sigil.principle.3.desc": "Not reading is treated as a choice to not prioritize understanding specifications, not as lack of comprehension.",
+    "sigil.principle.4.title": "Publication fulfills explanation duty",
+    "sigil.principle.4.desc": "The specification builder's duty to explain is fulfilled when the specification is published.",
+    "sigil.principle.5.title": "Emotional care is outside scope",
+    "sigil.principle.5.desc": "Emotional care, supplementary explanations, and verbal follow-ups are placed outside the specification's effect scope.",
+    "sigil.principle.6.title": "Non-conformity is rational judgment",
+    "sigil.principle.6.desc": "Rejection or non-participation due to specification non-conformity is established as rational judgment, not ability evaluation.",
+
+    // Sigil Dashboard
+    "sigil.dashboard": "Dashboard",
+    "sigil.spaces": "Spaces",
+    "sigil.spaces_desc": "List of managed environments",
+    "sigil.create_space": "Create Space",
+    "sigil.no_spaces": "No spaces",
+
+    // Sigil Space
+    "sigil.space.purpose": "Purpose",
+    "sigil.space.decisions": "Expected Decisions",
+    "sigil.space.done_strictness": "Done Condition Strictness",
+    "sigil.space.responsibility": "Responsibility Scope",
+    "sigil.space.view_toc": "View Table of Contents",
+
+    // Sigil TOC (Table of Contents)
+    "sigil.toc.title": "Table of Contents",
+    "sigil.toc.unread": "Unread",
+    "sigil.toc.read": "Read",
+    "sigil.chapter.prerequisites": "Specification Prerequisites",
+    "sigil.chapter.activation": "Activation Conditions",
+    "sigil.chapter.daily_decisions": "Daily Decisions",
+    "sigil.chapter.done": "Done Definition",
+    "sigil.chapter.boundaries": "Authority and Responsibility Boundaries",
+    "sigil.chapter.exceptions": "Exception Handling",
+
+    // Sigil Chapter
+    "sigil.chapter.back_to_toc": "Back to TOC",
+    "sigil.chapter.next": "Next Chapter",
+    "sigil.chapter.scope": "Applicable Scope",
+
+    // Sigil Explore
+    // Sigil Adopted
+    "sigil.adopted": "Adopted",
+
+    // Sigil Analytics
+    "sigil.analytics": "Analytics",
+  
+    // Sigil Explore
+    "sigil.explore": "Explore",
+    "sigil.explore.title": "Public Specifications",
+    "sigil.explore.desc": "Browse and adopt specifications published by other organizations",
+    "sigil.explore.search": "Search specifications...",
+    "sigil.explore.adopt": "Adopt",
+    "sigil.explore.adopted": "Adopted",
+    "sigil.explore.adopt_confirm": "Adopt this specification as your internal manual?",
+    "sigil.explore.adopt_desc": "Adopted specifications will be added to your spaces as 'Internal'. You can edit the content freely.",
+    "sigil.explore.view": "View",
+    "sigil.explore.author": "Author",
+    "sigil.explore.chapters": "Chapters",
+    "sigil.explore.adopted_count": "Adoptions",
+    "sigil.explore.category": "Category",
+    "sigil.explore.all_categories": "All",
+
+    // Sigil Settings
+    "sigil.settings": "Settings",
+    "sigil.settings.visibility": "Visibility",
+    "sigil.settings.public": "Public (anyone can view)",
+    "sigil.settings.private": "Private (URL holders only)",
+
+    // Common
+    "common.loading": "Loading...",
+    "common.error": "An error occurred",
+    "common.close": "Close",
+    "common.back": "Back",
+  },
+  zh: {
+    // Header
+    "header.principles": "原则",
+    "header.browse": "浏览",
+    "header.scout": "招募",
+    "header.recording": "记录中",
+    "header.auth": "认证",
+
+    // Record types
+    "record.decision_made": "做出了决定",
+    "record.decision_not_made": "没有做出决定",
+    "record.revised": "修订了",
+    "record.period_of_silence": "沉默期",
+
+    // Visibility
+    "visibility.private": "私密",
+    "visibility.scout_visible": "招募可见",
+    "visibility.public": "公开",
+
+    // Common
+    "common.loading": "加载中...",
+    "common.error": "发生错误",
+    "common.close": "关闭",
+    "common.back": "返回",
+
+    // ... more translations would be added
+  },
+  es: {
+    // Header
+    "header.principles": "Principios",
+    "header.browse": "Explorar",
+    "header.scout": "Reclutar",
+    "header.recording": "Grabando",
+    "header.auth": "Autenticación",
+
+    // Common
+    "common.loading": "Cargando...",
+    "common.error": "Ocurrió un error",
+    "common.close": "Cerrar",
+    "common.back": "Volver",
+
+    // ... more translations would be added
+  },
+  fr: {
+    // Header
+    "header.principles": "Principes",
+    "header.browse": "Parcourir",
+    "header.scout": "Recruter",
+    "header.recording": "Enregistrement",
+    "header.auth": "Authentification",
+
+    // Common
+    "common.loading": "Chargement...",
+    "common.error": "Une erreur s'est produite",
+    "common.close": "Fermer",
+    "common.back": "Retour",
+
+    // ... more translations would be added
+  },
+  de: {
+    // Header
+    "header.principles": "Prinzipien",
+    "header.browse": "Durchsuchen",
+    "header.scout": "Rekrutieren",
+    "header.recording": "Aufnahme",
+    "header.auth": "Authentifizierung",
+
+    // Common
+    "common.loading": "Laden...",
+    "common.error": "Ein Fehler ist aufgetreten",
+    "common.close": "Schließen",
+    "common.back": "Zurück",
+
+    // ... more translations would be added
+  },
+  ko: {
+    // Header
+    "header.principles": "원칙",
+    "header.browse": "탐색",
+    "header.scout": "스카우트",
+    "header.recording": "기록 중",
+    "header.auth": "인증",
+
+    // Common
+    "common.loading": "로딩 중...",
+    "common.error": "오류가 발생했습니다",
+    "common.close": "닫기",
+    "common.back": "뒤로",
+
+    // ... more translations would be added
+  },
+  pt: {
+    // Header
+    "header.principles": "Princípios",
+    "header.browse": "Navegar",
+    "header.scout": "Recrutar",
+    "header.recording": "Gravando",
+    "header.auth": "Autenticação",
+
+    // Common
+    "common.loading": "Carregando...",
+    "common.error": "Ocorreu um erro",
+    "common.close": "Fechar",
+    "common.back": "Voltar",
+
+    // ... more translations would be added
+  },
+  ar: {
+    // Header
+    "header.principles": "المبادئ",
+    "header.browse": "تصفح",
+    "header.scout": "استكشاف",
+    "header.recording": "جاري التسجيل",
+    "header.auth": "المصادقة",
+
+    // Common
+    "common.loading": "جاري التحميل...",
+    "common.error": "حدث خطأ",
+    "common.close": "إغلاق",
+    "common.back": "رجوع",
+
+    // ... more translations would be added
+  },
+  hi: {
+    // Header
+    "header.principles": "सिद्धांत",
+    "header.browse": "ब्राउज़",
+    "header.scout": "स्काउट",
+    "header.recording": "रिकॉर्डिंग",
+    "header.auth": "प्रमाणीकरण",
+
+    // Common
+    "common.loading": "लोड हो रहा है...",
+    "common.error": "एक त्रुटि हुई",
+    "common.close": "बंद करें",
+    "common.back": "वापस",
+
+    // ... more translations would be added
+  },
+} as const
+
+export type Locale = keyof typeof translations
+export type TranslationKey = keyof (typeof translations)["ja"]
+
+export const localeNames: Record<Locale, string> = {
+  ja: "日本語",
+  en: "English",
+  zh: "中文",
+  es: "Español",
+  fr: "Français",
+  de: "Deutsch",
+  ko: "한국어",
+  pt: "Português",
+  ar: "العربية",
+  hi: "हिन्दी",
+}
+
+export const defaultLocale: Locale = "en"

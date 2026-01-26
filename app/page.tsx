@@ -1,24 +1,25 @@
-import Link from "next/link";
+import { EpochTimeline } from "@/components/epoch-timeline"
+import { EpochHeader } from "@/components/epoch-header"
+import { EpochRecordForm } from "@/components/epoch-record-form"
+import { EpochOfflineBanner } from "@/components/epoch-offline-banner"
+import { EpochStats } from "@/components/epoch-stats"
 
 export default function HomePage() {
   return (
-    <main style={{ padding: "2rem", maxWidth: 720, margin: "0 auto" }}>
-      <h1>Product App Template</h1>
-      <p>
-        This template ships a docs gate, Stripe billing wiring, entitlements model,
-        minimal UI flow, and analytics stubs.
-      </p>
-      <ul>
-        <li>
-          <Link href="/plans">Plans</Link>
-        </li>
-        <li>
-          <Link href="/dashboard">Dashboard</Link>
-        </li>
-        <li>
-          <Link href="/admin/pricing">Admin Pricing</Link>
-        </li>
-      </ul>
-    </main>
-  );
+    <div className="min-h-screen bg-background">
+      <EpochHeader />
+      <main className="mx-auto max-w-4xl px-4 py-8">
+        <EpochRecordForm />
+        <EpochStats
+          totalRecords={5}
+          decisionsMade={2}
+          decisionsNotMade={1}
+          silencePeriods={1}
+          memberSince="2024-07-28T00:00:00Z"
+        />
+        <EpochTimeline />
+      </main>
+      <EpochOfflineBanner />
+    </div>
+  )
 }
