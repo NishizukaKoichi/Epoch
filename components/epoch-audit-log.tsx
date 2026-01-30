@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Shield, User } from "@/components/icons"
+import { useAuth } from "@/lib/auth/context"
 
 interface AuditEntry {
   id: string
@@ -16,84 +17,12 @@ interface AuditEntry {
   operatorReason?: string
 }
 
-const mockAuditLog: AuditEntry[] = [
-  {
-    id: "audit_001",
-    action: "record_created",
-    timestamp: "2024-01-15T10:30:00Z",
-    details: "decision_made",
-    actor: "user",
-  },
-  {
-    id: "audit_002",
-    action: "visibility_changed",
-    timestamp: "2024-01-15T10:25:00Z",
-    details: "private → scout_visible",
-    actor: "user",
-  },
-  {
-    id: "audit_003",
-    action: "auth_login",
-    timestamp: "2024-01-15T10:00:00Z",
-    details: "passkey",
-    actor: "user",
-  },
-  {
-    id: "audit_004",
-    action: "operator_data_export",
-    timestamp: "2024-01-14T22:00:00Z",
-    details: "法的要請に基づくデータ開示",
-    actor: "operator",
-    operatorId: "admin_001",
-    operatorReason: "裁判所命令 #2024-JP-1234",
-  },
-  {
-    id: "audit_005",
-    action: "record_created",
-    timestamp: "2024-01-14T18:00:00Z",
-    details: "decision_not_made",
-    actor: "user",
-  },
-  {
-    id: "audit_006",
-    action: "billing_session_started",
-    timestamp: "2024-01-14T14:00:00Z",
-    details: "read_session",
-    actor: "user",
-  },
-  {
-    id: "audit_007",
-    action: "epoch_viewed",
-    timestamp: "2024-01-14T14:00:00Z",
-    details: "user_abc123",
-    actor: "user",
-  },
-  {
-    id: "audit_008",
-    action: "operator_account_review",
-    timestamp: "2024-01-13T15:00:00Z",
-    details: "定期セキュリティ監査",
-    actor: "operator",
-    operatorId: "admin_002",
-    operatorReason: "四半期セキュリティレビュー",
-  },
-  {
-    id: "audit_009",
-    action: "billing_session_ended",
-    timestamp: "2024-01-14T15:30:00Z",
-    actor: "user",
-  },
-  {
-    id: "audit_010",
-    action: "attachment_added",
-    timestamp: "2024-01-13T09:00:00Z",
-    details: "image/jpeg",
-    actor: "user",
-  },
-]
-
 export function EpochAuditLog() {
   const [filter, setFilter] = useState<"all" | "user" | "operator">("all")
+  const [entries, setEntries] = useState<AuditEntry[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { userId } = useAuth()
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString("ja-JP", {
@@ -124,10 +53,33 @@ export function EpochAuditLog() {
     return labels[action] || action
   }
 
-  const filteredLog = mockAuditLog.filter((entry) => {
-    if (filter === "all") return true
-    return entry.actor === filter
-  })
+  useEffect(() => {
+    if (!userId) {
+      setEntries([])
+      return
+    }
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/epoch/audit?filter=${filter}`, {
+          headers: { "x-user-id": userId },
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "監査ログの取得に失敗しました")
+        }
+        const data = (await response.json()) as { logs: AuditEntry[] }
+        setEntries(data.logs ?? [])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "監査ログの取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [filter, userId])
 
   const renderEntry = (entry: AuditEntry) => (
     <div
@@ -185,7 +137,13 @@ export function EpochAuditLog() {
 
         <ScrollArea className="h-96">
           <div className="space-y-1">
-            {filteredLog.map(renderEntry)}
+            {isLoading && <div className="text-xs text-muted-foreground">読み込み中...</div>}
+            {error && (
+              <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+            {entries.map(renderEntry)}
           </div>
         </ScrollArea>
 

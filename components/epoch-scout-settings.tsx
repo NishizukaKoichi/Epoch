@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Save, Plus, X } from "@/components/icons"
 import { useI18n } from "@/lib/i18n/context"
+import { useAuth } from "@/lib/auth/context"
 
 const industries = [
   // 情報通信
@@ -83,10 +84,6 @@ const industries = [
   { id: "other", label: "その他" },
 ]
 
-interface ScoutSettingsProps {
-  onSave?: (settings: ScoutSettings) => void
-}
-
 interface ScoutSettings {
   enabled: boolean
   maxPerMonth: number
@@ -97,9 +94,13 @@ interface ScoutSettings {
   requireSalaryRange: boolean
 }
 
-export function EpochScoutSettings({ onSave }: ScoutSettingsProps) {
+export function EpochScoutSettings() {
   const { t } = useI18n()
+  const { userId } = useAuth()
   const [saved, setSaved] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [settings, setSettings] = useState<ScoutSettings>({
     enabled: true,
     maxPerMonth: 10,
@@ -111,10 +112,64 @@ export function EpochScoutSettings({ onSave }: ScoutSettingsProps) {
   })
   const [newKeyword, setNewKeyword] = useState("")
 
-  const handleSave = () => {
-    onSave?.(settings)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  useEffect(() => {
+    if (!userId) {
+      return
+    }
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/settings/scout", {
+          headers: { "x-user-id": userId },
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "スカウト設定の取得に失敗しました")
+        }
+        const data = (await response.json()) as { settings: ScoutSettings }
+        if (data.settings) {
+          setSettings(data.settings)
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "スカウト設定の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [userId])
+
+  const handleSave = async () => {
+    if (!userId) {
+      setError("ログインが必要です")
+      return
+    }
+    setIsSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      const response = await fetch("/api/epoch/settings/scout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify(settings),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "スカウト設定の保存に失敗しました")
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "スカウト設定の保存に失敗しました"
+      setError(message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const toggleIndustry = (industryId: string) => {
@@ -145,6 +200,21 @@ export function EpochScoutSettings({ onSave }: ScoutSettingsProps) {
 
   return (
     <div className="space-y-6">
+      {isLoading && (
+        <div className="rounded border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          読み込み中...
+        </div>
+      )}
+      {error && (
+        <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+      {saved && !error && (
+        <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
+          保存しました
+        </div>
+      )}
       {/* Scout Enable/Disable */}
       <Card>
         <CardHeader>
@@ -332,9 +402,9 @@ export function EpochScoutSettings({ onSave }: ScoutSettingsProps) {
 
       {/* Save button */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} className="gap-2">
+        <Button onClick={handleSave} className="gap-2" disabled={isSaving}>
           <Save className="h-4 w-4" />
-          {saved ? "保存しました" : "保存"}
+          {isSaving ? "保存中..." : saved ? "保存しました" : "保存"}
         </Button>
       </div>
     </div>

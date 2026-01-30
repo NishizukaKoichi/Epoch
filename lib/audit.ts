@@ -2,10 +2,29 @@ import { query } from "./db";
 import { uuidV7Like } from "./ids";
 
 export type AuditEventName =
+  | "record_created"
+  | "visibility_changed"
+  | "profile_updated"
+  | "scout_sent"
+  | "scout_accepted"
+  | "scout_declined"
+  | "scout_withdrawn"
+  | "scout_completed"
+  | "scout_message_sent"
+  | "scout_message_received"
+  | "scout_settings_updated"
+  | "silence_settings_updated"
   | "time_window_started"
   | "time_window_ended"
   | "read_session_started"
-  | "read_session_ended";
+  | "read_session_ended"
+  | "org_created"
+  | "org_updated"
+  | "org_deleted"
+  | "org_invite_sent"
+  | "org_department_created"
+  | "org_department_updated"
+  | "org_department_deleted";
 
 export type AuditProps = Record<string, unknown>;
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,43 +21,120 @@ import {
 import { EpochHeader } from "@/components/epoch-header"
 import { EpochFooter } from "@/components/epoch-footer"
 import { ArrowLeft, Building2, Shield, Trash2, AlertTriangle } from "@/components/icons"
-import type { Organization } from "@/lib/types/organization"
+import { useAuth } from "@/lib/auth/context"
 
 interface EpochOrgSettingsProps {
   orgId: string
 }
 
-const mockOrg: Organization = {
-  id: "org_001",
-  name: "株式会社サンプル",
-  slug: "sample-corp",
-  createdAt: "2024-01-01T00:00:00Z",
-  ownerId: "user_001",
+type OrgDetail = {
+  id: string
+  name: string
+  slug: string
+  createdAt: string
   settings: {
-    allowMemberEpochAccess: true,
-    requireApprovalForJoin: true,
-  },
+    allowMemberEpochAccess: boolean
+    requireApprovalForJoin: boolean
+  }
 }
 
 export function EpochOrgSettings({ orgId }: EpochOrgSettingsProps) {
-  const [orgName, setOrgName] = useState(mockOrg.name)
-  const [orgSlug, setOrgSlug] = useState(mockOrg.slug)
-  const [allowMemberAccess, setAllowMemberAccess] = useState(mockOrg.settings.allowMemberEpochAccess)
-  const [requireApproval, setRequireApproval] = useState(mockOrg.settings.requireApprovalForJoin)
+  const { userId } = useAuth()
+  const [orgName, setOrgName] = useState("")
+  const [orgSlug, setOrgSlug] = useState("")
+  const [allowMemberAccess, setAllowMemberAccess] = useState(false)
+  const [requireApproval, setRequireApproval] = useState(true)
+  const [createdAt, setCreatedAt] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSave = () => {
-    console.log("Saving org settings:", {
-      name: orgName,
-      slug: orgSlug,
-      settings: {
-        allowMemberEpochAccess: allowMemberAccess,
-        requireApprovalForJoin: requireApproval,
-      },
-    })
+  useEffect(() => {
+    if (!userId) {
+      setError("認証情報がありません")
+      return
+    }
+    const load = async () => {
+      setError(null)
+      try {
+        const response = await fetch(`/api/epoch/orgs/${orgId}`, {
+          headers: { "x-user-id": userId },
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "組織情報の取得に失敗しました")
+        }
+        const data = (await response.json()) as { org: OrgDetail }
+        if (!data.org) return
+        setOrgName(data.org.name)
+        setOrgSlug(data.org.slug)
+        setAllowMemberAccess(data.org.settings.allowMemberEpochAccess)
+        setRequireApproval(data.org.settings.requireApprovalForJoin)
+        setCreatedAt(data.org.createdAt)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "組織情報の取得に失敗しました"
+        setError(message)
+      }
+    }
+    load()
+  }, [orgId, userId])
+
+  const handleSave = async () => {
+    if (!userId) {
+      setError("認証情報がありません")
+      return
+    }
+    setIsSaving(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/epoch/orgs/${orgId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({
+          name: orgName,
+          slug: orgSlug,
+          allowMemberEpochAccess: allowMemberAccess,
+          requireApprovalForJoin: requireApproval,
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "組織設定の更新に失敗しました")
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "組織設定の更新に失敗しました"
+      setError(message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleDeleteOrg = () => {
-    console.log("Deleting organization:", orgId)
+  const handleDeleteOrg = async () => {
+    if (!userId) {
+      setError("認証情報がありません")
+      return
+    }
+    setIsDeleting(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/epoch/orgs/${orgId}`, {
+        method: "DELETE",
+        headers: { "x-user-id": userId },
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "組織の削除に失敗しました")
+      }
+      window.location.href = "/epoch/org"
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "組織の削除に失敗しました"
+      setError(message)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -67,7 +144,7 @@ export function EpochOrgSettings({ orgId }: EpochOrgSettingsProps) {
       <main className="flex-1 container max-w-2xl mx-auto px-4 py-8">
         <div className="mb-6">
           <Link
-            href={`/org/${orgId}`}
+            href={`/epoch/org/${orgId}`}
             className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -77,8 +154,13 @@ export function EpochOrgSettings({ orgId }: EpochOrgSettingsProps) {
 
         <h1 className="text-xl font-semibold text-foreground mb-6">組織設定</h1>
 
+        {error && (
+          <div className="mb-4 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+
         <div className="space-y-6">
-          {/* Basic Info */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-base text-foreground flex items-center gap-2">
@@ -112,13 +194,12 @@ export function EpochOrgSettings({ orgId }: EpochOrgSettingsProps) {
 
               <div className="pt-2">
                 <p className="text-xs text-muted-foreground">
-                  作成日: {new Date(mockOrg.createdAt).toLocaleDateString("ja-JP")}
+                  作成日: {createdAt ? new Date(createdAt).toLocaleDateString("ja-JP") : "不明"}
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Access Settings */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-base text-foreground flex items-center gap-2">
@@ -171,17 +252,16 @@ export function EpochOrgSettings({ orgId }: EpochOrgSettingsProps) {
             </CardContent>
           </Card>
 
-          {/* Save Button */}
           <div className="flex justify-end">
             <Button
               onClick={handleSave}
+              disabled={!orgName || !orgSlug || isSaving}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              変更を保存
+              {isSaving ? "保存中..." : "変更を保存"}
             </Button>
           </div>
 
-          {/* Danger Zone */}
           <Card className="bg-card border-destructive/50">
             <CardHeader>
               <CardTitle className="text-base text-destructive flex items-center gap-2">
@@ -218,19 +298,14 @@ export function EpochOrgSettings({ orgId }: EpochOrgSettingsProps) {
                           <li>組織内の閲覧権限が無効になります</li>
                         </ul>
                         <p className="mt-2">
-                          ただし、各メンバーのEpochは削除されず、個人として継続利用できます。
+                          なお、個々のEpoch Recordは削除されません。
                         </p>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel className="border-border bg-transparent">
-                        キャンセル
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteOrg}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        削除する
+                      <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteOrg} disabled={isDeleting}>
+                        {isDeleting ? "削除中..." : "削除する"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, ArrowLeft, CheckCircle2, XCircle, Building2, Briefcase, User } from "@/components/icons"
 import Link from "next/link"
+import { useAuth } from "@/lib/auth/context"
 
 interface Message {
   id: string
@@ -36,68 +37,16 @@ interface ScoutConversation {
   completedAt?: string
 }
 
-const mockConversation: ScoutConversation = {
-  id: "scout_conv_001",
-  status: "in_discussion",
-  initiatorId: "user_abc123",
-  initiatorName: "田中 太郎",
-  initiatorInfo: {
-    organization: "株式会社テクノロジー",
-    role: "エンジニアリングマネージャー",
-    projectSummary: "新規プロダクト開発チームのテックリード募集",
-  },
-  targetId: "user_me",
-  targetName: "自分",
-  messages: [
-    {
-      id: "msg_001",
-      senderId: "system",
-      senderName: "システム",
-      content: "スカウトが送信されました: 「一回来て、仕事を一緒にやってみませんか？」",
-      timestamp: "2024-01-15T10:00:00Z",
-      isSystem: true,
-    },
-    {
-      id: "msg_002",
-      senderId: "system",
-      senderName: "システム",
-      content: "スカウトが承諾されました。詳細の擦り合わせを開始できます。",
-      timestamp: "2024-01-15T11:00:00Z",
-      isSystem: true,
-    },
-    {
-      id: "msg_003",
-      senderId: "user_abc123",
-      senderName: "田中 太郎",
-      content: "承諾いただきありがとうございます。弊社では現在、新規プロダクトの立ち上げを進めており、テックリードを探しています。まずはカジュアルにお話しできればと思いますが、ご都合はいかがでしょうか？",
-      timestamp: "2024-01-15T11:05:00Z",
-    },
-    {
-      id: "msg_004",
-      senderId: "user_me",
-      senderName: "自分",
-      content: "ご連絡ありがとうございます。興味があります。来週であれば火曜日か木曜日の午後が空いています。",
-      timestamp: "2024-01-15T14:30:00Z",
-    },
-    {
-      id: "msg_005",
-      senderId: "user_abc123",
-      senderName: "田中 太郎",
-      content: "ありがとうございます。では火曜日の14時はいかがでしょうか？オンラインでも対面でも対応可能です。",
-      timestamp: "2024-01-15T15:00:00Z",
-    },
-  ],
-  createdAt: "2024-01-15T10:00:00Z",
-  acceptedAt: "2024-01-15T11:00:00Z",
-}
-
 interface EpochScoutConversationProps {
   conversationId: string
   isInitiator?: boolean
 }
 
 export function EpochScoutConversation({ conversationId, isInitiator = false }: EpochScoutConversationProps) {
-  const [conversation, setConversation] = useState<ScoutConversation>(mockConversation)
+  const { userId } = useAuth()
+  const [conversation, setConversation] = useState<ScoutConversation | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -106,65 +55,116 @@ export function EpochScoutConversation({ conversationId, isInitiator = false }: 
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [conversation.messages])
+  }, [conversation?.messages])
+
+  useEffect(() => {
+    if (!userId) {
+      return
+    }
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/epoch/scouts/${conversationId}`, {
+          headers: { "x-user-id": userId },
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "スカウト会話の取得に失敗しました")
+        }
+        const data = (await response.json()) as { conversation: ScoutConversation }
+        setConversation(data.conversation)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "スカウト会話の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [conversationId, userId])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return
-
-    setIsSending(true)
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    const message: Message = {
-      id: `msg_${Date.now()}`,
-      senderId: "user_me",
-      senderName: "自分",
-      content: newMessage,
-      timestamp: new Date().toISOString(),
+    if (!userId) {
+      setError("ログインが必要です")
+      return
     }
-
-    setConversation((prev) => ({
-      ...prev,
-      messages: [...prev.messages, message],
-    }))
-    setNewMessage("")
-    setIsSending(false)
+    if (!conversation) {
+      return
+    }
+    setIsSending(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/epoch/scouts/${conversation.id}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({ content: newMessage.trim() }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "メッセージ送信に失敗しました")
+      }
+      const data = (await response.json()) as { conversation: ScoutConversation }
+      setConversation(data.conversation)
+      setNewMessage("")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "メッセージ送信に失敗しました"
+      setError(message)
+    } finally {
+      setIsSending(false)
+    }
   }
 
   const handleComplete = async () => {
-    setConversation((prev) => ({
-      ...prev,
-      status: "completed",
-      completedAt: new Date().toISOString(),
-      messages: [
-        ...prev.messages,
-        {
-          id: `msg_${Date.now()}`,
-          senderId: "system",
-          senderName: "システム",
-          content: "この会話は完了としてマークされました。",
-          timestamp: new Date().toISOString(),
-          isSystem: true,
+    if (!userId || !conversation) {
+      setError("ログインが必要です")
+      return
+    }
+    try {
+      const response = await fetch(`/api/epoch/scouts/${conversation.id}/complete`, {
+        method: "POST",
+        headers: {
+          "x-user-id": userId,
         },
-      ],
-    }))
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "完了処理に失敗しました")
+      }
+      const data = (await response.json()) as { conversation: ScoutConversation }
+      setConversation(data.conversation)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "完了処理に失敗しました"
+      setError(message)
+    }
   }
 
   const handleWithdraw = async () => {
-    setConversation((prev) => ({
-      ...prev,
-      status: "withdrawn",
-      messages: [
-        ...prev.messages,
-        {
-          id: `msg_${Date.now()}`,
-          senderId: "system",
-          senderName: "システム",
-          content: "この会話は取り下げられました。",
-          timestamp: new Date().toISOString(),
-          isSystem: true,
+    if (!userId || !conversation) {
+      setError("ログインが必要です")
+      return
+    }
+    try {
+      const response = await fetch(`/api/epoch/scouts/${conversation.id}/withdraw`, {
+        method: "POST",
+        headers: {
+          "x-user-id": userId,
         },
-      ],
-    }))
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "取り下げに失敗しました")
+      }
+      const data = (await response.json()) as { conversation: ScoutConversation }
+      setConversation(data.conversation)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "取り下げに失敗しました"
+      setError(message)
+    }
   }
 
   const formatDate = (dateStr: string) => {
@@ -193,12 +193,26 @@ export function EpochScoutConversation({ conversationId, isInitiator = false }: 
     )
   }
 
-  const isConversationActive = ["accepted", "in_discussion"].includes(conversation.status)
+  const isConversationActive = conversation && ["accepted", "in_discussion"].includes(conversation.status)
+
+  if (isLoading) {
+    return <div className="py-12 text-center text-muted-foreground">読み込み中...</div>
+  }
+
+  if (error) {
+    return <div className="py-12 text-center text-destructive">{error}</div>
+  }
+
+  if (!conversation) {
+    return <div className="py-12 text-center text-muted-foreground">会話が見つかりません</div>
+  }
+
+  const isInitiatorView = isInitiator || (userId ? conversation.initiatorId === userId : false)
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/scout">
+        <Link href="/epoch/scout">
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4 mr-2" />
             戻る
@@ -206,7 +220,7 @@ export function EpochScoutConversation({ conversationId, isInitiator = false }: 
         </Link>
         <div className="flex-1">
           <h1 className="text-xl font-semibold text-foreground">
-            {isInitiator ? conversation.targetName : conversation.initiatorName}
+            {isInitiatorView ? conversation.targetName : conversation.initiatorName}
           </h1>
           <p className="text-sm text-muted-foreground">スカウト会話</p>
         </div>
@@ -217,7 +231,7 @@ export function EpochScoutConversation({ conversationId, isInitiator = false }: 
       <Card className="bg-card border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-normal text-muted-foreground">
-            {isInitiator ? "あなたの情報" : "スカウト送信者情報"}
+            {isInitiatorView ? "あなたの情報" : "スカウト送信者情報"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -250,7 +264,7 @@ export function EpochScoutConversation({ conversationId, isInitiator = false }: 
               {conversation.messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.senderId === "user_me" ? "justify-end" : "justify-start"}`}
+                  className={`flex ${message.senderId === userId ? "justify-end" : "justify-start"}`}
                 >
                   {message.isSystem ? (
                     <div className="w-full text-center py-2">
@@ -261,16 +275,16 @@ export function EpochScoutConversation({ conversationId, isInitiator = false }: 
                   ) : (
                     <div
                       className={`max-w-[80%] rounded-lg p-3 ${
-                        message.senderId === "user_me"
+                        message.senderId === userId
                           ? "bg-primary text-primary-foreground"
                           : "bg-secondary text-foreground"
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       <p
-                        className={`text-xs mt-1 ${
-                          message.senderId === "user_me" ? "text-primary-foreground/70" : "text-muted-foreground"
-                        }`}
+                      className={`text-xs mt-1 ${
+                        message.senderId === userId ? "text-primary-foreground/70" : "text-muted-foreground"
+                      }`}
                       >
                         {formatDate(message.timestamp)}
                       </p>

@@ -15,7 +15,7 @@ export function EpochLegalPage({ type }: EpochLegalPageProps) {
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-4xl px-4 py-6">
-          <Link href="/" className="text-lg font-medium tracking-tight text-foreground">
+          <Link href="/epoch" className="text-lg font-medium tracking-tight text-foreground">
             Epoch
           </Link>
           <span className="ml-2 text-muted-foreground">
@@ -36,15 +36,15 @@ export function EpochLegalPage({ type }: EpochLegalPageProps) {
 
         <div className="mt-12 pt-8 border-t border-border">
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <Link href="/terms" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/terms" className="hover:text-foreground transition-colors">
               利用規約
             </Link>
             <span>|</span>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/privacy" className="hover:text-foreground transition-colors">
               プライバシーポリシー
             </Link>
             <span>|</span>
-            <Link href="/status" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/status" className="hover:text-foreground transition-colors">
               サービス状態
             </Link>
           </div>

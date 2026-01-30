@@ -16,19 +16,19 @@ export function EpochFooter() {
           </div>
 
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link href="/landing" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/landing" className="hover:text-foreground transition-colors">
               {t("footer.principles")}
             </Link>
-            <Link href="/settings" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/settings" className="hover:text-foreground transition-colors">
               {t("settings.title")}
             </Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/terms" className="hover:text-foreground transition-colors">
               利用規約
             </Link>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/privacy" className="hover:text-foreground transition-colors">
               プライバシー
             </Link>
-            <Link href="/status" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/status" className="hover:text-foreground transition-colors">
               ステータス
             </Link>
           </nav>

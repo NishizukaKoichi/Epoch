@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -27,11 +27,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Plus, MoreHorizontal, Pencil, Trash2 } from "@/components/icons"
 import type { Department } from "@/lib/types/organization"
+import { useAuth } from "@/lib/auth/context"
 
 interface EpochDepartmentTreeProps {
   departments: Department[]
   selectedId: string | null
   onSelect: (id: string | null) => void
+  onDepartmentsChange?: (departments: Department[]) => void
   orgId: string
   canEdit?: boolean
 }
@@ -79,15 +81,19 @@ export function EpochDepartmentTree({
   departments,
   selectedId,
   onSelect,
+  onDepartmentsChange,
   orgId,
   canEdit = true,
 }: EpochDepartmentTreeProps) {
+  const { userId } = useAuth()
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(departments.map((d) => d.id)))
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [newDeptName, setNewDeptName] = useState("")
   const [newDeptParent, setNewDeptParent] = useState<string | null>(null)
   const [editingDept, setEditingDept] = useState<Department | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const tree = buildTree(departments)
 
@@ -103,23 +109,124 @@ export function EpochDepartmentTree({
     })
   }
 
-  const handleCreateDept = () => {
-    console.log("Creating department:", { name: newDeptName, parentId: newDeptParent })
-    setCreateDialogOpen(false)
-    setNewDeptName("")
-    setNewDeptParent(null)
-  }
+  useEffect(() => {
+    setExpandedIds(new Set(departments.map((d) => d.id)))
+  }, [departments])
 
-  const handleEditDept = () => {
-    if (editingDept) {
-      console.log("Editing department:", editingDept)
+  const handleCreateDept = async () => {
+    if (!userId) {
+      setError("認証情報がありません")
+      return
     }
-    setEditDialogOpen(false)
-    setEditingDept(null)
+    if (!newDeptName.trim()) {
+      setError("部門名を入力してください")
+      return
+    }
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/epoch/orgs/${orgId}/departments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({
+          name: newDeptName.trim(),
+          parentId: newDeptParent,
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "部門の作成に失敗しました")
+      }
+      const data = (await response.json()) as { department: Department }
+      if (data.department) {
+        onDepartmentsChange?.([...departments, data.department])
+      }
+      setCreateDialogOpen(false)
+      setNewDeptName("")
+      setNewDeptParent(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "部門の作成に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleDeleteDept = (dept: Department) => {
-    console.log("Deleting department:", dept.id)
+  const handleEditDept = async () => {
+    if (!editingDept) return
+    if (!userId) {
+      setError("認証情報がありません")
+      return
+    }
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const response = await fetch(
+        `/api/epoch/orgs/${orgId}/departments/${editingDept.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId,
+          },
+          body: JSON.stringify({
+            name: editingDept.name,
+            parentId: editingDept.parentId,
+          }),
+        }
+      )
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "部門の更新に失敗しました")
+      }
+      const data = (await response.json()) as { department: Department }
+      if (data.department) {
+        onDepartmentsChange?.(
+          departments.map((dept) => (dept.id === data.department.id ? data.department : dept))
+        )
+      }
+      setEditDialogOpen(false)
+      setEditingDept(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "部門の更新に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteDept = async (dept: Department) => {
+    if (!userId) {
+      setError("認証情報がありません")
+      return
+    }
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const response = await fetch(
+        `/api/epoch/orgs/${orgId}/departments/${dept.id}`,
+        {
+          method: "DELETE",
+          headers: { "x-user-id": userId },
+        }
+      )
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "部門の削除に失敗しました")
+      }
+      onDepartmentsChange?.(departments.filter((item) => item.id !== dept.id))
+      if (selectedId === dept.id) {
+        onSelect(null)
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "部門の削除に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const renderNode = (node: TreeNode, depth: number = 0) => {
@@ -215,6 +322,11 @@ export function EpochDepartmentTree({
 
   return (
     <div className="space-y-2">
+      {error && (
+        <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
       <div className="space-y-0.5 group">
         {tree.map((node) => renderNode(node))}
       </div>
@@ -227,6 +339,7 @@ export function EpochDepartmentTree({
             setNewDeptParent(null)
             setCreateDialogOpen(true)
           }}
+          disabled={isSubmitting}
           className="w-full mt-4 border-dashed border-border bg-transparent text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -291,10 +404,10 @@ export function EpochDepartmentTree({
             </Button>
             <Button
               onClick={handleCreateDept}
-              disabled={!newDeptName}
+              disabled={!newDeptName || isSubmitting}
               className="bg-primary text-primary-foreground"
             >
-              作成
+              {isSubmitting ? "作成中..." : "作成"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -329,9 +442,10 @@ export function EpochDepartmentTree({
             </Button>
             <Button
               onClick={handleEditDept}
+              disabled={!editingDept?.name || isSubmitting}
               className="bg-primary text-primary-foreground"
             >
-              保存
+              {isSubmitting ? "保存中..." : "保存"}
             </Button>
           </DialogFooter>
         </DialogContent>

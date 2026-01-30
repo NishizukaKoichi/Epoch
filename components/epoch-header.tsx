@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Clock, LayoutDashboard, Users, Settings, ChevronLeft, Shield, Compass, Bell, User } from "@/components/icons"
@@ -11,22 +11,17 @@ import { cn } from "@/lib/utils"
 import { EpochPrinciplesDialog } from "@/components/epoch-principles-dialog"
 import { EpochContextSwitcher } from "@/components/epoch-context-switcher"
 
-// Mock data - 現在従事している組織（兼業・副業で複数可）
-const mockCurrentOrganizations = [
-  { id: "org_001", name: "株式会社テクノロジー", role: "エンジニア" },
-]
-
 const navItems = [
-  { href: "/", icon: LayoutDashboard, labelKey: "header.timeline" },
-  { href: "/browse", icon: Compass, labelKey: "header.browse" },
-  { href: "/scout", icon: Bell, labelKey: "header.scout" },
-  { href: "/profile", icon: User, labelKey: "header.profile" },
-  { href: "/settings", icon: Settings, labelKey: "header.settings" },
+  { href: "/epoch", icon: LayoutDashboard, labelKey: "header.timeline" },
+  { href: "/epoch/browse", icon: Compass, labelKey: "header.browse" },
+  { href: "/epoch/scout", icon: Bell, labelKey: "header.scout" },
+  { href: "/epoch/profile", icon: User, labelKey: "header.profile" },
+  { href: "/epoch/settings", icon: Settings, labelKey: "header.settings" },
 ]
 
 function isNavActive(pathname: string, href: string): boolean {
-  if (href === "/") {
-    return pathname === "/" || pathname.startsWith("/user/") || pathname.startsWith("/org/")
+  if (href === "/epoch") {
+    return pathname === "/epoch" || pathname.startsWith("/epoch/user/") || pathname.startsWith("/epoch/org/")
   }
   return pathname.startsWith(href)
 }
@@ -34,15 +29,17 @@ function isNavActive(pathname: string, href: string): boolean {
 export function EpochHeader() {
   const [showPrinciples, setShowPrinciples] = useState(false)
   const [currentContext, setCurrentContext] = useState<"personal" | { orgId: string; orgName: string }>("personal")
+  const [currentOrganizations, setCurrentOrganizations] = useState<
+    { id: string; name: string; role?: string | null }[]
+  >([])
+  const [pendingScouts, setPendingScouts] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
   const { t } = useI18n()
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, userId } = useAuth()
 
-  const pendingScouts = 1
-
-  // ホーム（/）以外では戻るボタンを表示
-  const isHomePage = pathname === "/"
+  // ホーム（/epoch）以外では戻るボタンを表示
+  const isHomePage = pathname === "/epoch"
   const showBackButton = !isHomePage
 
   const handleBack = () => {
@@ -52,15 +49,49 @@ export function EpochHeader() {
   const handleContextSwitch = (context: "personal" | string) => {
     if (context === "personal") {
       setCurrentContext("personal")
-      router.push("/")
+      router.push("/epoch")
     } else {
-      const org = mockCurrentOrganizations.find((o) => o.id === context)
+      const org = currentOrganizations.find((o) => o.id === context)
       if (org) {
         setCurrentContext({ orgId: org.id, orgName: org.name })
-        router.push(`/org/${org.id}`)
+        router.push(`/epoch/org/${org.id}`)
       }
     }
   }
+
+  useEffect(() => {
+    if (!userId) {
+      setCurrentOrganizations([])
+      setPendingScouts(0)
+      return
+    }
+    const load = async () => {
+      try {
+        const [orgResponse, scoutResponse] = await Promise.all([
+          fetch("/api/epoch/orgs/mine", {
+            headers: { "x-user-id": userId },
+          }),
+          fetch("/api/epoch/scouts", {
+            headers: { "x-user-id": userId },
+          }),
+        ])
+
+        if (orgResponse.ok) {
+          const payload = (await orgResponse.json()) as { orgs: { id: string; name: string; role?: string }[] }
+          setCurrentOrganizations(payload.orgs ?? [])
+        }
+
+        if (scoutResponse.ok) {
+          const payload = (await scoutResponse.json()) as { received?: { status: string }[] }
+          const pending = (payload.received ?? []).filter((scout) => scout.status === "pending").length
+          setPendingScouts(pending)
+        }
+      } catch {
+        // silence errors; header should remain usable even if data is unavailable
+      }
+    }
+    load()
+  }, [userId])
 
   return (
     <>
@@ -79,14 +110,14 @@ export function EpochHeader() {
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
               )}
-              <Link href="/" className="flex items-center gap-2">
+              <Link href="/epoch" className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-green-500" />
                 <span className="font-semibold text-foreground">Epoch</span>
               </Link>
               <div className="h-5 w-px bg-border mx-1" />
               <EpochContextSwitcher
                 currentContext={currentContext}
-                currentOrganizations={mockCurrentOrganizations}
+                currentOrganizations={currentOrganizations}
                 onSwitch={handleContextSwitch}
               />
               <button
@@ -102,7 +133,7 @@ export function EpochHeader() {
                 <span className="hidden sm:inline">{t("header.recording")}</span>
               </div>
               {pendingScouts > 0 && (
-                <Link href="/scout">
+                <Link href="/epoch/scout">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground relative">
                     <Bell className="h-4 w-4" />
                     <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-amber-500 text-[10px] font-medium text-background flex items-center justify-center">

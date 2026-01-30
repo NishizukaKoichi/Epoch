@@ -16,9 +16,19 @@ This is a gate, not reference material. Required fields must be completed before
 ## Reference Specs (Non-Gate)
 - koichinishizuka.com UI仕様書: docs/spec/koichinishizuka-ui-spec.md
 - koichinishizuka.com Platform API spec: docs/spec/koichinishizuka-platform-api-spec.md
+- koichinishizuka.com Platform schema: docs/spec/koichinishizuka-platform-schema.md
 - Epoch consolidated spec v1.2: docs/spec/epoch-spec-v1.2.md
-- MagicSpell fixed spec: docs/spec/magicspell-fixed-spec.md
-- MagicSpell Runtime spec: docs/spec/magicspell-runtime-spec.md
+- Spell fixed spec: docs/spec/spell-fixed-spec.md
+- Spell Runtime spec: docs/spec/spell-runtime-spec.md
+- Spell API spec: docs/spec/spell-api.md
+- Spell schema: docs/spec/spell-schema.md
 - Sigil spec: docs/spec/sigil-spec.md
+- Sigil API spec: docs/spec/sigil-api.md
+- Sigil schema: docs/spec/sigil-schema.md
 - Talisman spec v1.0: docs/spec/talisman-spec-v1.0.md
 - Pact spec v1.0: docs/spec/pact-spec-v1.0.md
+- Pact API spec: docs/spec/pact-api.md
+- Pact schema: docs/spec/pact-schema.md
+
+## Implementation Map (Non-Gate)
+- UI → Backend gap matrix: docs/implementation/ui-backend-gap.md

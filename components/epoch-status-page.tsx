@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, AlertTriangle, XCircle, Clock, Database, Server, Shield, Pen } from "@/components/icons"
@@ -12,41 +12,9 @@ interface ServiceInfo {
   name: string
   description: string
   status: ServiceStatus
-  icon: React.ReactNode
   lastUpdated: string
   message?: string
 }
-
-const mockServices: ServiceInfo[] = [
-  {
-    name: "Record書き込み",
-    description: "新しいRecordの作成と確定",
-    status: "operational",
-    icon: <Pen className="h-5 w-5" />,
-    lastUpdated: "2024-01-15T10:00:00Z",
-  },
-  {
-    name: "データベース",
-    description: "Epochデータの保存と取得",
-    status: "operational",
-    icon: <Database className="h-5 w-5" />,
-    lastUpdated: "2024-01-15T10:00:00Z",
-  },
-  {
-    name: "認証サービス",
-    description: "Passkey / Magic Link認証",
-    status: "operational",
-    icon: <Shield className="h-5 w-5" />,
-    lastUpdated: "2024-01-15T10:00:00Z",
-  },
-  {
-    name: "APIサーバー",
-    description: "アプリケーションバックエンド",
-    status: "operational",
-    icon: <Server className="h-5 w-5" />,
-    lastUpdated: "2024-01-15T10:00:00Z",
-  },
-]
 
 interface IncidentInfo {
   id: string
@@ -60,31 +28,48 @@ interface IncidentInfo {
   }[]
 }
 
-const mockIncidents: IncidentInfo[] = [
-  {
-    id: "inc_001",
-    title: "Record書き込み遅延",
-    status: "resolved",
-    createdAt: "2024-01-10T14:00:00Z",
-    updatedAt: "2024-01-10T15:30:00Z",
-    updates: [
-      {
-        timestamp: "2024-01-10T15:30:00Z",
-        message: "問題が解決しました。全てのサービスは正常に稼働しています。",
-      },
-      {
-        timestamp: "2024-01-10T14:45:00Z",
-        message: "原因を特定しました。データベースの負荷が原因でした。対処中です。",
-      },
-      {
-        timestamp: "2024-01-10T14:00:00Z",
-        message: "一部のユーザーでRecord書き込みに遅延が発生しています。調査中です。",
-      },
-    ],
-  },
-]
 
 export function EpochStatusPage() {
+  const [services, setServices] = useState<ServiceInfo[]>([])
+  const [incidents, setIncidents] = useState<IncidentInfo[]>([])
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const serviceIcons: Record<string, ReactNode> = {
+    Record書き込み: <Pen className="h-5 w-5" />,
+    データベース: <Database className="h-5 w-5" />,
+    認証サービス: <Shield className="h-5 w-5" />,
+    APIサーバー: <Server className="h-5 w-5" />,
+  }
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/status")
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "ステータスの取得に失敗しました")
+        }
+        const data = (await response.json()) as {
+          services: ServiceInfo[]
+          incidents: IncidentInfo[]
+          updatedAt?: string
+        }
+        setServices(data.services ?? [])
+        setIncidents(data.incidents ?? [])
+        setUpdatedAt(data.updatedAt ?? null)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "ステータスの取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [])
   const getStatusIcon = (status: ServiceStatus) => {
     switch (status) {
       case "operational":
@@ -124,8 +109,8 @@ export function EpochStatusPage() {
     }
   }
 
-  const allOperational = mockServices.every((s) => s.status === "operational")
-  const hasOutage = mockServices.some((s) => s.status === "outage")
+  const allOperational = services.length > 0 && services.every((s) => s.status === "operational")
+  const hasOutage = services.some((s) => s.status === "outage")
 
   const formatTimestamp = (iso: string) => {
     return new Date(iso).toLocaleString("ja-JP", {
@@ -141,7 +126,7 @@ export function EpochStatusPage() {
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-4xl px-4 py-6">
-          <Link href="/" className="text-lg font-medium tracking-tight text-foreground">
+          <Link href="/epoch" className="text-lg font-medium tracking-tight text-foreground">
             Epoch
           </Link>
           <span className="ml-2 text-muted-foreground">/ ステータス</span>
@@ -176,7 +161,7 @@ export function EpochStatusPage() {
                     : "一部のサービスでパフォーマンス低下が発生しています"}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                最終更新: {formatTimestamp(new Date().toISOString())}
+                最終更新: {formatTimestamp(updatedAt ?? new Date().toISOString())}
               </p>
             </div>
           </div>
@@ -201,13 +186,21 @@ export function EpochStatusPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockServices.map((service) => (
+              {isLoading && <div className="text-sm text-muted-foreground">読み込み中...</div>}
+              {error && (
+                <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {error}
+                </div>
+              )}
+              {services.map((service) => (
                 <div
                   key={service.name}
                   className="flex items-center justify-between py-3 border-b border-border last:border-0"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="text-muted-foreground">{service.icon}</div>
+                    <div className="text-muted-foreground">
+                      {serviceIcons[service.name] ?? <Server className="h-5 w-5" />}
+                    </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">{service.name}</p>
                       <p className="text-xs text-muted-foreground">{service.description}</p>
@@ -231,11 +224,11 @@ export function EpochStatusPage() {
             <CardTitle className="text-lg text-foreground">過去のインシデント</CardTitle>
           </CardHeader>
           <CardContent>
-            {mockIncidents.length === 0 ? (
+            {incidents.length === 0 ? (
               <p className="text-sm text-muted-foreground">過去30日間にインシデントはありません。</p>
             ) : (
               <div className="space-y-6">
-                {mockIncidents.map((incident) => (
+                {incidents.map((incident) => (
                   <div key={incident.id} className="border-b border-border pb-6 last:border-0">
                     <div className="flex items-start justify-between mb-4">
                       <div>

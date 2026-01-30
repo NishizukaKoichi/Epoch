@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Shield, LayoutDashboard, Key, History, Settings, Plug, ChevronLeft, CreditCard, LogOut } from "@/components/icons"
 import { useI18n } from "@/lib/i18n/context"
-import { useAuth } from "@/lib/auth/context"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { clearStoredPersonId, getStoredPersonId } from "@/lib/talisman/client"
 
 const navItems = [
   { href: "/talisman", icon: LayoutDashboard, labelKey: "talisman.dashboard" },
@@ -19,9 +20,9 @@ const navItems = [
 
 export function TalismanHeader() {
   const { t } = useI18n()
-  const { isLoggedIn, logout } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   const isLandingPage = pathname === "/talisman/landing"
   
@@ -32,6 +33,10 @@ export function TalismanHeader() {
 
   const isHomePage = pathname === "/talisman"
   const showBackButton = !isHomePage
+
+  useEffect(() => {
+    setIsLoggedIn(Boolean(getStoredPersonId()))
+  }, [pathname])
 
   const handleBack = () => {
     router.back()
@@ -63,7 +68,8 @@ export function TalismanHeader() {
               variant="ghost" 
               size="sm" 
               onClick={() => {
-                logout()
+                clearStoredPersonId()
+                setIsLoggedIn(false)
                 router.push("/talisman/landing")
               }}
               className="text-muted-foreground hover:text-foreground gap-1"

@@ -3,7 +3,6 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { I18nProvider } from "@/lib/i18n/context"
 import { AuthProvider } from "@/lib/auth/context"
-import { GlobalNav } from "@/components/global-nav"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -45,10 +44,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans antialiased`}>
         <AuthProvider>
-          <I18nProvider>
-            <GlobalNav />
-            {children}
-          </I18nProvider>
+          <I18nProvider>{children}</I18nProvider>
         </AuthProvider>
       </body>
     </html>

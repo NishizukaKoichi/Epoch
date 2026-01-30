@@ -1,22 +1,51 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Clock, Info } from "@/components/icons"
+import { useAuth } from "@/lib/auth/context"
 
-interface EpochSilenceSettingsProps {
-  currentDays: number
-  autoGenerate: boolean
-  onSave: (days: number, autoGenerate: boolean) => void
-}
-
-export function EpochSilenceSettings({ currentDays = 7, autoGenerate = true, onSave }: EpochSilenceSettingsProps) {
-  const [days, setDays] = useState(currentDays)
-  const [enabled, setEnabled] = useState(autoGenerate)
+export function EpochSilenceSettings() {
+  const { userId } = useAuth()
+  const [days, setDays] = useState(7)
+  const [enabled, setEnabled] = useState(true)
   const [hasChanges, setHasChanges] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!userId) {
+      return
+    }
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/settings/silence", {
+          headers: { "x-user-id": userId },
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "沈黙設定の取得に失敗しました")
+        }
+        const data = (await response.json()) as { settings: { days: number; autoGenerate: boolean } }
+        setDays(data.settings?.days ?? 7)
+        setEnabled(data.settings?.autoGenerate ?? true)
+        setHasChanges(false)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "沈黙設定の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [userId])
 
   const handleDaysChange = (value: number[]) => {
     setDays(value[0])
@@ -28,9 +57,35 @@ export function EpochSilenceSettings({ currentDays = 7, autoGenerate = true, onS
     setHasChanges(true)
   }
 
-  const handleSave = () => {
-    onSave(days, enabled)
-    setHasChanges(false)
+  const handleSave = async () => {
+    if (!userId) {
+      setError("ログインが必要です")
+      return
+    }
+    setIsSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      const response = await fetch("/api/epoch/settings/silence", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({ days, autoGenerate: enabled }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "沈黙設定の保存に失敗しました")
+      }
+      setHasChanges(false)
+      setSaved(true)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "沈黙設定の保存に失敗しました"
+      setError(message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -46,6 +101,21 @@ export function EpochSilenceSettings({ currentDays = 7, autoGenerate = true, onS
       </div>
 
       <div className="space-y-6">
+        {isLoading && (
+          <div className="rounded border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            読み込み中...
+          </div>
+        )}
+        {error && (
+          <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+        {saved && !error && (
+          <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
+            保存しました
+          </div>
+        )}
         {/* Enable/Disable */}
         <div className="flex items-center justify-between">
           <Label htmlFor="auto-silence" className="text-sm text-foreground">
@@ -87,10 +157,10 @@ export function EpochSilenceSettings({ currentDays = 7, autoGenerate = true, onS
       <div className="flex justify-end pt-4 border-t border-border">
         <Button
           onClick={handleSave}
-          disabled={!hasChanges}
+          disabled={!hasChanges || isSaving}
           className="bg-foreground text-background hover:bg-foreground/90"
         >
-          設定を保存
+          {isSaving ? "保存中..." : "設定を保存"}
         </Button>
       </div>
     </div>

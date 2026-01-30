@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -8,100 +8,18 @@ import { Search, User, ChevronLeft, ChevronRight, Filter, Grid, List } from "@/c
 import { Slider } from "@/components/ui/slider"
 import Link from "next/link"
 import { useI18n } from "@/lib/i18n/context"
+import { EpochScoutDialog } from "@/components/epoch-scout-dialog"
 
 interface PublicUser {
   userId: string
-  displayName: string
-  bio: string
-  profession: string
-  region: string
+  displayName: string | null
+  bio: string | null
+  profession: string | null
+  region: string | null
   recordCount: number
-  firstRecordAt: string
+  firstRecordAt: string | null
   scoutVisible: boolean
 }
-
-const mockUsers: PublicUser[] = [
-  {
-    userId: "user_001",
-    displayName: "Taro Yamada",
-    bio: "Software engineer. Recording decisions.",
-    profession: "tech",
-    region: "asia",
-    recordCount: 234,
-    firstRecordAt: "2024-01-15",
-    scoutVisible: true,
-  },
-  {
-    userId: "user_002",
-    displayName: "Hanako Sato",
-    bio: "Product manager. Transparency in decisions.",
-    profession: "tech",
-    region: "asia",
-    recordCount: 189,
-    firstRecordAt: "2024-02-20",
-    scoutVisible: true,
-  },
-  {
-    userId: "user_003",
-    displayName: "John Smith",
-    bio: "Designer. Recording creative decisions.",
-    profession: "creative",
-    region: "north_america",
-    recordCount: 67,
-    firstRecordAt: "2024-03-10",
-    scoutVisible: false,
-  },
-  {
-    userId: "user_004",
-    displayName: "Maria Garcia",
-    bio: "CEO. Business decision history.",
-    profession: "consulting",
-    region: "europe",
-    recordCount: 412,
-    firstRecordAt: "2023-11-05",
-    scoutVisible: true,
-  },
-  {
-    userId: "user_005",
-    displayName: "Li Wei",
-    bio: "Researcher. Academic decisions.",
-    profession: "education",
-    region: "asia",
-    recordCount: 156,
-    firstRecordAt: "2024-01-22",
-    scoutVisible: true,
-  },
-  {
-    userId: "user_006",
-    displayName: "Emma Johnson",
-    bio: "Lawyer. Legal decision transparency.",
-    profession: "consulting",
-    region: "north_america",
-    recordCount: 298,
-    firstRecordAt: "2023-12-01",
-    scoutVisible: true,
-  },
-  {
-    userId: "user_007",
-    displayName: "Ahmed Hassan",
-    bio: "Doctor. Clinical decisions.",
-    profession: "healthcare",
-    region: "africa",
-    recordCount: 521,
-    firstRecordAt: "2023-10-15",
-    scoutVisible: false,
-  },
-  {
-    userId: "user_008",
-    displayName: "Sophie Martin",
-    bio: "Investor. Investment decisions.",
-    profession: "finance",
-    region: "europe",
-    recordCount: 345,
-    firstRecordAt: "2024-02-08",
-    scoutVisible: true,
-  },
-]
 
 const ITEMS_PER_PAGE = 12
 
@@ -137,6 +55,9 @@ export function EpochUserDirectory() {
     { value: "records_low", label: t("directory.sort.records_asc") },
   ]
 
+  const [users, setUsers] = useState<PublicUser[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [profession, setProfession] = useState("all")
   const [region, setRegion] = useState("all")
@@ -147,22 +68,54 @@ export function EpochUserDirectory() {
   const [showFilters, setShowFilters] = useState(false)
   const [minRecords, setMinRecords] = useState(0)
   const [maxRecords, setMaxRecords] = useState(1000)
+  const [showScoutDialog, setShowScoutDialog] = useState(false)
+  const [selectedScoutTarget, setSelectedScoutTarget] = useState<{ displayName: string; userId: string } | null>(null)
 
-  const maxRecordCount = useMemo(() => {
-    return Math.max(...mockUsers.map((u) => u.recordCount), 1000)
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/directory/users")
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "ユーザー一覧の取得に失敗しました")
+        }
+        const data = (await response.json()) as { users: PublicUser[] }
+        setUsers(data.users ?? [])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "ユーザー一覧の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
   }, [])
 
+  const maxRecordCount = useMemo(() => {
+    if (users.length === 0) {
+      return 0
+    }
+    return Math.max(...users.map((u) => u.recordCount), 0)
+  }, [users])
+
+  useEffect(() => {
+    if (maxRecordCount > 0) {
+      setMaxRecords(maxRecordCount)
+    }
+  }, [maxRecordCount])
+
   const filteredAndSortedUsers = useMemo(() => {
-    let result = [...mockUsers]
+    let result = [...users]
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      result = result.filter(
-        (u) =>
-          u.displayName.toLowerCase().includes(query) ||
-          u.userId.toLowerCase().includes(query) ||
-          u.bio.toLowerCase().includes(query),
-      )
+      result = result.filter((u) => {
+        const name = (u.displayName ?? u.userId).toLowerCase()
+        const bio = (u.bio ?? "").toLowerCase()
+        return name.includes(query) || u.userId.toLowerCase().includes(query) || bio.includes(query)
+      })
     }
     if (profession !== "all") {
       result = result.filter((u) => u.profession === profession)
@@ -177,16 +130,20 @@ export function EpochUserDirectory() {
 
     switch (sortBy) {
       case "newest":
-        result.sort((a, b) => new Date(b.firstRecordAt).getTime() - new Date(a.firstRecordAt).getTime())
+        result.sort(
+          (a, b) => new Date(b.firstRecordAt ?? 0).getTime() - new Date(a.firstRecordAt ?? 0).getTime(),
+        )
         break
       case "oldest":
-        result.sort((a, b) => new Date(a.firstRecordAt).getTime() - new Date(b.firstRecordAt).getTime())
+        result.sort(
+          (a, b) => new Date(a.firstRecordAt ?? 0).getTime() - new Date(b.firstRecordAt ?? 0).getTime(),
+        )
         break
       case "name_asc":
-        result.sort((a, b) => a.displayName.localeCompare(b.displayName))
+        result.sort((a, b) => (a.displayName ?? a.userId).localeCompare(b.displayName ?? b.userId))
         break
       case "name_desc":
-        result.sort((a, b) => b.displayName.localeCompare(a.displayName))
+        result.sort((a, b) => (b.displayName ?? b.userId).localeCompare(a.displayName ?? a.userId))
         break
       case "records_high":
         result.sort((a, b) => b.recordCount - a.recordCount)
@@ -216,13 +173,19 @@ export function EpochUserDirectory() {
         <p className="text-sm text-muted-foreground mt-1">{t("directory.desc")}</p>
       </div>
 
+      {error && (
+        <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+
       {/* Tab navigation */}
       <div className="flex gap-4 border-b border-border">
         <span className="pb-2 text-sm text-foreground border-b-2 border-foreground">
           ユーザー
         </span>
         <Link
-          href="/browse/orgs"
+          href="/epoch/browse/orgs"
           className="pb-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           組織
@@ -357,7 +320,11 @@ export function EpochUserDirectory() {
         {filteredAndSortedUsers.length} {t("directory.records_count")}
       </p>
 
-      {paginatedUsers.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-16 border border-dashed border-border rounded-lg text-muted-foreground">
+          読み込み中...
+        </div>
+      ) : paginatedUsers.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-border rounded-lg">
           <User className="h-12 w-12 mx-auto text-muted-foreground/50" />
           <p className="mt-4 text-muted-foreground">{t("directory.no_results")}</p>
@@ -372,22 +339,33 @@ export function EpochUserDirectory() {
                   <User className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground truncate">{user.displayName}</p>
+                  <p className="font-medium text-foreground truncate">{user.displayName ?? user.userId}</p>
                   <p className="text-xs text-muted-foreground font-mono">{user.userId}</p>
                 </div>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{user.bio}</p>
+              <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{user.bio ?? ""}</p>
               <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
                 <span>{user.recordCount} records</span>
               </div>
               <div className="mt-4 flex gap-2">
-                <Link href={`/user/${user.userId}`} className="flex-1">
+                <Link href={`/epoch/user/${user.userId}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full border-border bg-transparent">
                     {t("directory.view_epoch")}
                   </Button>
                 </Link>
                 {user.scoutVisible && (
-                  <Button variant="default" size="sm" className="flex-1 bg-foreground text-background">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="flex-1 bg-foreground text-background"
+                    onClick={() => {
+                      setSelectedScoutTarget({
+                        displayName: user.displayName ?? user.userId,
+                        userId: user.userId,
+                      })
+                      setShowScoutDialog(true)
+                    }}
+                  >
                     {t("directory.send_scout")}
                   </Button>
                 )}
@@ -400,15 +378,15 @@ export function EpochUserDirectory() {
           {paginatedUsers.map((user) => (
             <Link
               key={user.userId}
-              href={`/user/${user.userId}`}
+              href={`/epoch/user/${user.userId}`}
               className="flex items-center gap-4 p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-colors"
             >
               <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                 <User className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground">{user.displayName}</p>
-                <p className="text-sm text-muted-foreground truncate">{user.bio}</p>
+                <p className="font-medium text-foreground">{user.displayName ?? user.userId}</p>
+                <p className="text-sm text-muted-foreground truncate">{user.bio ?? ""}</p>
               </div>
               <span className="text-sm text-muted-foreground">{user.recordCount} records</span>
             </Link>
@@ -440,6 +418,15 @@ export function EpochUserDirectory() {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+      )}
+
+      {selectedScoutTarget && (
+        <EpochScoutDialog
+          open={showScoutDialog}
+          onOpenChange={setShowScoutDialog}
+          targetUser={selectedScoutTarget}
+          mode="send"
+        />
       )}
     </div>
   )

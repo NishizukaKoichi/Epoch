@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,36 +18,16 @@ import { Label } from "@/components/ui/label"
 import { EpochHeader } from "@/components/epoch-header"
 import { EpochFooter } from "@/components/epoch-footer"
 import { Building2, Plus, Users, ChevronRight } from "@/components/icons"
-import type { Organization, OrganizationMember } from "@/lib/types/organization"
+import { useAuth } from "@/lib/auth/context"
+import type { OrganizationMember } from "@/lib/types/organization"
 
-const mockOrganizations: (Organization & { memberCount: number; myRole: OrganizationMember["role"] })[] = [
-  {
-    id: "org_001",
-    name: "株式会社サンプル",
-    slug: "sample-corp",
-    createdAt: "2024-01-01T00:00:00Z",
-    ownerId: "user_001",
-    settings: {
-      allowMemberEpochAccess: true,
-      requireApprovalForJoin: true,
-    },
-    memberCount: 128,
-    myRole: "owner",
-  },
-  {
-    id: "org_002",
-    name: "開発チーム Alpha",
-    slug: "alpha-dev",
-    createdAt: "2024-02-15T00:00:00Z",
-    ownerId: "user_002",
-    settings: {
-      allowMemberEpochAccess: true,
-      requireApprovalForJoin: false,
-    },
-    memberCount: 12,
-    myRole: "member",
-  },
-]
+type UserOrg = {
+  id: string
+  name: string
+  slug: string
+  role: OrganizationMember["role"] | null
+  memberCount: number
+}
 
 const ROLE_LABELS = {
   owner: "オーナー",
@@ -57,16 +37,76 @@ const ROLE_LABELS = {
 }
 
 export function EpochOrgList() {
+  const { userId } = useAuth()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [newOrgName, setNewOrgName] = useState("")
   const [newOrgSlug, setNewOrgSlug] = useState("")
+  const [orgs, setOrgs] = useState<UserOrg[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
 
-  const handleCreateOrg = () => {
-    // TODO: Implement org creation
-    console.log("Creating org:", { name: newOrgName, slug: newOrgSlug })
-    setCreateDialogOpen(false)
-    setNewOrgName("")
-    setNewOrgSlug("")
+  useEffect(() => {
+    if (!userId) {
+      setError("認証情報がありません")
+      return
+    }
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/orgs/mine", {
+          headers: { "x-user-id": userId },
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "組織情報の取得に失敗しました")
+        }
+        const data = (await response.json()) as { orgs: UserOrg[] }
+        setOrgs(data.orgs ?? [])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "組織情報の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [userId])
+
+  const handleCreateOrg = async () => {
+    if (!userId) {
+      setError("認証情報がありません")
+      return
+    }
+    setIsCreating(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/epoch/orgs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({ name: newOrgName, slug: newOrgSlug }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "組織の作成に失敗しました")
+      }
+      const data = (await response.json()) as { org: UserOrg }
+      if (data.org) {
+        setOrgs((prev) => [data.org, ...prev])
+      }
+      setCreateDialogOpen(false)
+      setNewOrgName("")
+      setNewOrgSlug("")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "組織の作成に失敗しました"
+      setError(message)
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const generateSlug = (name: string) => {
@@ -146,17 +186,25 @@ export function EpochOrgList() {
                 </Button>
                 <Button
                   onClick={handleCreateOrg}
-                  disabled={!newOrgName || !newOrgSlug}
+                  disabled={!newOrgName || !newOrgSlug || isCreating}
                   className="bg-primary text-primary-foreground"
                 >
-                  作成
+                  {isCreating ? "作成中..." : "作成"}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        {mockOrganizations.length === 0 ? (
+        {error && (
+          <div className="mb-4 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">読み込み中...</p>
+        ) : orgs.length === 0 ? (
           <Card className="bg-card border-border">
             <CardContent className="py-12 text-center">
               <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -168,8 +216,8 @@ export function EpochOrgList() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {mockOrganizations.map((org) => (
-              <Link key={org.id} href={`/org/${org.id}`}>
+            {orgs.map((org) => (
+              <Link key={org.id} href={`/epoch/org/${org.id}`}>
                 <Card className="bg-card border-border hover:border-muted-foreground/50 transition-colors cursor-pointer">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -181,14 +229,14 @@ export function EpochOrgList() {
                           <h3 className="text-foreground font-medium">{org.name}</h3>
                           <div className="flex items-center gap-3 mt-0.5">
                             <span className="text-xs text-muted-foreground font-mono">
-                              /{org.slug}
+                              /{org.slug || org.id}
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Users className="h-3 w-3" />
                               {org.memberCount}
                             </span>
                             <span className="text-xs px-1.5 py-0.5 bg-secondary rounded text-muted-foreground">
-                              {ROLE_LABELS[org.myRole]}
+                              {ROLE_LABELS[org.role ?? "member"]}
                             </span>
                           </div>
                         </div>

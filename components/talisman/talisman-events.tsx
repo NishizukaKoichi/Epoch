@@ -1,19 +1,22 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { UserPlus, KeyRound, EyeOff as KeyOff, Filter } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useI18n } from "@/lib/i18n/context"
+import { ensurePersonId } from "@/lib/talisman/client"
 
-const mockEvents = [
-  { id: "evt-6", type: "credential_revoked", recordedAt: "2024-03-01T12:00:00Z", actor: "product", payload: { type: "phone_otp", credential_id: "cred-4" } },
-  { id: "evt-5", type: "credential_added", recordedAt: "2024-02-01T14:20:00Z", actor: "system", payload: { type: "passkey", credential_id: "cred-3" } },
-  { id: "evt-4", type: "credential_added", recordedAt: "2024-01-20T09:00:00Z", actor: "system", payload: { type: "phone_otp", credential_id: "cred-4" } },
-  { id: "evt-3", type: "credential_added", recordedAt: "2024-01-15T10:32:00Z", actor: "system", payload: { type: "oauth_google", credential_id: "cred-2" } },
-  { id: "evt-2", type: "credential_added", recordedAt: "2024-01-15T10:30:00Z", actor: "system", payload: { type: "email_magiclink", credential_id: "cred-1" } },
-  { id: "evt-1", type: "person_created", recordedAt: "2024-01-15T10:30:00Z", actor: "system", payload: {} },
-]
+type EventType = "person_created" | "credential_added" | "credential_revoked"
+
+type EventItem = {
+  id: string
+  type: EventType
+  recordedAt: string
+  actor: string
+  payload: Record<string, unknown>
+}
 
 const eventIcons = {
   person_created: UserPlus,
@@ -29,6 +32,63 @@ const eventColors = {
 
 export function TalismanEvents() {
   const { t } = useI18n()
+  const [events, setEvents] = useState<EventItem[]>([])
+  const [filter, setFilter] = useState<"all" | EventType>("all")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const filteredEvents = useMemo(() => {
+    if (filter === "all") return events
+    return events.filter((event) => event.type === filter)
+  }, [events, filter])
+
+  useEffect(() => {
+    let active = true
+
+    const load = async () => {
+      try {
+        const personId = await ensurePersonId()
+        if (!active) return
+        const response = await fetch(`/api/v1/talisman/events?person_id=${encodeURIComponent(personId)}&limit=100`)
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "Eventの取得に失敗しました")
+        }
+        const data = (await response.json()) as {
+          events: Array<{
+            event_id: string
+            event_type: EventType
+            payload: Record<string, unknown>
+            actor: string
+            recorded_at: string
+          }>
+        }
+        if (!active) return
+        setEvents(
+          data.events.map((event) => ({
+            id: event.event_id,
+            type: event.event_type,
+            payload: event.payload ?? {},
+            actor: event.actor,
+            recordedAt: event.recorded_at,
+          }))
+        )
+        setError(null)
+      } catch (err) {
+        if (!active) return
+        const message = err instanceof Error ? err.message : "Eventの取得に失敗しました"
+        setError(message)
+      } finally {
+        if (active) setIsLoading(false)
+      }
+    }
+
+    load()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString()
@@ -52,10 +112,10 @@ export function TalismanEvents() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>All Events</DropdownMenuItem>
-                <DropdownMenuItem>Person Created</DropdownMenuItem>
-                <DropdownMenuItem>Credential Added</DropdownMenuItem>
-                <DropdownMenuItem>Credential Revoked</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setFilter("all")}>All Events</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setFilter("person_created")}>Person Created</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setFilter("credential_added")}>Credential Added</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setFilter("credential_revoked")}>Credential Revoked</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -73,9 +133,18 @@ export function TalismanEvents() {
         <div className="absolute left-6 top-0 bottom-0 w-px bg-border" />
 
         <div className="space-y-4">
-          {mockEvents.map((event, index) => {
+          {error && (
+            <Card className="border-destructive/50">
+              <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
+            </Card>
+          )}
+          {filteredEvents.map((event) => {
             const Icon = eventIcons[event.type as keyof typeof eventIcons] || KeyRound
             const colorClass = eventColors[event.type as keyof typeof eventColors] || "text-muted-foreground bg-muted"
+            const payloadType = event.payload?.type
+            const payloadCredentialId =
+              (event.payload?.credential_id as string | undefined) ??
+              (event.payload?.credentialId as string | undefined)
             
             return (
               <div key={event.id} className="relative flex gap-4 pl-4">
@@ -91,9 +160,9 @@ export function TalismanEvents() {
                       <p className="font-medium text-foreground">
                         {t(`talisman.event.${event.type}`)}
                       </p>
-                      {event.payload?.type && (
+                      {payloadType && (
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {t(`talisman.cred.${event.payload.type}`)}
+                          {t(`talisman.cred.${payloadType}`)}
                         </p>
                       )}
                     </div>
@@ -110,9 +179,9 @@ export function TalismanEvents() {
                     <div className="text-muted-foreground">
                       <span className="text-foreground">actor:</span> {event.actor}
                     </div>
-                    {event.payload?.credential_id && (
+                    {payloadCredentialId && (
                       <div className="text-muted-foreground">
-                        <span className="text-foreground">credential_id:</span> {event.payload.credential_id}
+                        <span className="text-foreground">credential_id:</span> {payloadCredentialId}
                       </div>
                     )}
                   </div>
@@ -120,6 +189,13 @@ export function TalismanEvents() {
               </div>
             )
           })}
+          {filteredEvents.length === 0 && !isLoading && !error && (
+            <Card>
+              <CardContent className="pt-6 text-sm text-muted-foreground">
+                {t("talisman.events_desc")}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

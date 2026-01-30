@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Mail, Phone, Chrome, Apple, Plus, Key, CreditCard, X as XIcon } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { useI18n } from "@/lib/i18n/context"
+import { ensurePersonId } from "@/lib/talisman/client"
 
 const credentialTypes = [
   { type: "email_magiclink", icon: Mail, available: true },
@@ -18,18 +20,31 @@ const credentialTypes = [
   { type: "payment_card", icon: CreditCard, available: true },
 ]
 
-const mockCredentials = [
-  { id: "cred-1", type: "email_magiclink", normalizedHash: "a1b2c3...d4e5f6", issuedAt: "2024-01-15T10:30:00Z", revokedAt: null, issuer: "talisman-auth" },
-  { id: "cred-2", type: "oauth_google", normalizedHash: "g7h8i9...j0k1l2", issuedAt: "2024-01-15T10:32:00Z", revokedAt: null, issuer: "talisman-auth" },
-  { id: "cred-3", type: "passkey", normalizedHash: "m3n4o5...p6q7r8", issuedAt: "2024-02-01T14:20:00Z", revokedAt: null, issuer: "talisman-auth" },
-  { id: "cred-4", type: "phone_otp", normalizedHash: "s9t0u1...v2w3x4", issuedAt: "2024-01-20T09:00:00Z", revokedAt: "2024-03-01T12:00:00Z", issuer: "talisman-auth" },
-]
+type CredentialType = (typeof credentialTypes)[number]["type"]
+
+type CredentialItem = {
+  id: string
+  type: CredentialType
+  normalizedHash: string
+  issuedAt: string
+  revokedAt: string | null
+  issuer: string
+}
 
 export function TalismanCredentials() {
   const { t } = useI18n()
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false)
-  const [selectedCredential, setSelectedCredential] = useState<typeof mockCredentials[0] | null>(null)
+  const [selectedCredential, setSelectedCredential] = useState<CredentialItem | null>(null)
+  const [personId, setPersonId] = useState<string | null>(null)
+  const [credentials, setCredentials] = useState<CredentialItem[]>([])
+  const [selectedType, setSelectedType] = useState<CredentialType | null>(null)
+  const [rawValue, setRawValue] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [revokingId, setRevokingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const issuer = "talisman-ui"
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString()
@@ -40,16 +55,178 @@ export function TalismanCredentials() {
     return found?.icon || Key
   }
 
-  const activeCount = mockCredentials.filter(c => !c.revokedAt).length
-  const revokedCount = mockCredentials.filter(c => c.revokedAt).length
+  const activeCount = credentials.filter(c => !c.revokedAt).length
+  const revokedCount = credentials.filter(c => c.revokedAt).length
+  const totalCount = credentials.length
+  const addPlaceholder = useMemo(() => {
+    switch (selectedType) {
+      case "email_magiclink":
+        return "you@example.com"
+      case "phone_otp":
+        return "+81 90 0000 0000"
+      case "oauth_google":
+      case "oauth_apple":
+      case "oauth_microsoft":
+      case "oauth_x":
+        return "provider_user_id"
+      case "passkey":
+        return "passkey_credential_id"
+      case "payment_card":
+        return "network:last4:fingerprint"
+      default:
+        return "value"
+    }
+  }, [selectedType])
+
+  useEffect(() => {
+    let active = true
+
+    const load = async () => {
+      try {
+        const id = await ensurePersonId()
+        if (!active) return
+        setPersonId(id)
+
+        const response = await fetch(`/api/v1/talisman/credentials?person_id=${encodeURIComponent(id)}`)
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "Credentialの取得に失敗しました")
+        }
+        const data = (await response.json()) as {
+          credentials: Array<{
+            credential_id: string
+            type: CredentialType
+            normalized_hash: string
+            issuer: string
+            issued_at: string
+            revoked_at: string | null
+          }>
+        }
+        if (!active) return
+        setCredentials(
+          data.credentials.map((cred) => ({
+            id: cred.credential_id,
+            type: cred.type,
+            normalizedHash: cred.normalized_hash,
+            issuer: cred.issuer,
+            issuedAt: cred.issued_at,
+            revokedAt: cred.revoked_at,
+          }))
+        )
+        setError(null)
+      } catch (err) {
+        if (!active) return
+        const message = err instanceof Error ? err.message : "Credentialの取得に失敗しました"
+        setError(message)
+      } finally {
+        if (active) setIsLoading(false)
+      }
+    }
+
+    load()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!addDialogOpen) {
+      setSelectedType(null)
+      setRawValue("")
+    }
+  }, [addDialogOpen])
+
+  const handleAddCredential = async () => {
+    if (!personId || !selectedType || !rawValue.trim()) return
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/v1/talisman/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          person_id: personId,
+          type: selectedType,
+          raw_value: rawValue.trim(),
+          issuer,
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Credentialの追加に失敗しました")
+      }
+      const data = (await response.json()) as {
+        credential_id: string
+        type: CredentialType
+        normalized_hash: string
+        issuer: string
+        issued_at: string
+        revoked_at: string | null
+      }
+      const newCredential: CredentialItem = {
+        id: data.credential_id,
+        type: data.type,
+        normalizedHash: data.normalized_hash,
+        issuer: data.issuer,
+        issuedAt: data.issued_at,
+        revokedAt: data.revoked_at,
+      }
+      setCredentials((prev) => [newCredential, ...prev])
+      setAddDialogOpen(false)
+      setSelectedType(null)
+      setRawValue("")
+      setError(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Credentialの追加に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleRevoke = async (credential: CredentialItem) => {
+    setRevokingId(credential.id)
+    try {
+      const response = await fetch("/api/v1/talisman/credentials/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credential_id: credential.id,
+          actor: "user",
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Credentialの撤回に失敗しました")
+      }
+      const revokedAt = new Date().toISOString()
+      setCredentials((prev) =>
+        prev.map((item) => (item.id === credential.id ? { ...item, revokedAt } : item))
+      )
+      setRevokeDialogOpen(false)
+      setSelectedCredential(null)
+      setError(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Credentialの撤回に失敗しました"
+      setError(message)
+    } finally {
+      setRevokingId(null)
+    }
+  }
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Card className="border-destructive/50">
+          <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      )}
+
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-light text-foreground">{mockCredentials.length}</div>
+            <div className="text-2xl font-light text-foreground">{totalCount}</div>
             <p className="text-sm text-muted-foreground">Total Credentials</p>
           </CardContent>
         </Card>
@@ -89,28 +266,59 @@ export function TalismanCredentials() {
                     Select a credential type to add
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-2 py-4">
-                  {credentialTypes.map((cred) => {
-                    const Icon = cred.icon
-                    return (
-                      <button
-                        key={cred.type}
-                        className="flex items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-secondary"
-                        onClick={() => setAddDialogOpen(false)}
-                      >
-                        <Icon className="h-5 w-5 text-muted-foreground" />
-                        <span className="font-medium">{t(`talisman.cred.${cred.type}`)}</span>
-                      </button>
-                    )
-                  })}
-                </div>
+                {!selectedType ? (
+                  <div className="grid gap-2 py-4">
+                    {credentialTypes.map((cred) => {
+                      const Icon = cred.icon
+                      return (
+                        <button
+                          key={cred.type}
+                          className="flex items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-secondary"
+                          onClick={() => setSelectedType(cred.type)}
+                        >
+                          <Icon className="h-5 w-5 text-muted-foreground" />
+                          <span className="font-medium">{t(`talisman.cred.${cred.type}`)}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-4 py-4">
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                      {t(`talisman.cred.${selectedType}`)}
+                    </div>
+                    <div className="space-y-2">
+                      <Input
+                        placeholder={addPlaceholder}
+                        value={rawValue}
+                        onChange={(event) => setRawValue(event.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        issuer: {issuer}
+                      </p>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setSelectedType(null)} className="bg-transparent">
+                        Back
+                      </Button>
+                      <Button onClick={handleAddCredential} disabled={!rawValue.trim() || isSubmitting}>
+                        {isSubmitting ? "Saving..." : "Add"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {mockCredentials.map((cred) => {
+          {credentials.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">
+              {isLoading ? t("common.loading") : t("talisman.no_credentials")}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {credentials.map((cred) => {
               const Icon = getIcon(cred.type)
               const isRevoked = !!cred.revokedAt
               
@@ -187,8 +395,12 @@ export function TalismanCredentials() {
                                 <Button variant="outline" onClick={() => setRevokeDialogOpen(false)} className="bg-transparent">
                                   Cancel
                                 </Button>
-                                <Button variant="destructive" onClick={() => setRevokeDialogOpen(false)}>
-                                  Revoke
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => handleRevoke(cred)}
+                                  disabled={revokingId === cred.id}
+                                >
+                                  {revokingId === cred.id ? "Revoking..." : "Revoke"}
                                 </Button>
                               </div>
                             </DialogContent>
@@ -199,8 +411,9 @@ export function TalismanCredentials() {
                   </div>
                 </div>
               )
-            })}
-          </div>
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

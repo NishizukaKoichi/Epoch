@@ -11,16 +11,28 @@ import { EpochFinalConfirmation } from "./epoch-final-confirmation"
 import { useI18n } from "@/lib/i18n/context"
 
 type RecordType = "decision_made" | "decision_not_made" | "revised" | "period_of_silence"
-type Visibility = "private" | "org_only" | "scout_visible" | "public"
+type Visibility = "private" | "scout_visible" | "public"
 
-export function EpochRecordForm() {
+type AttachmentMeta = {
+  name: string
+  dataUrl: string
+  hash: string
+}
+
+interface EpochRecordFormProps {
+  userId: string | null
+  onRecordCreated?: () => void
+}
+
+export function EpochRecordForm({ userId, onRecordCreated }: EpochRecordFormProps) {
   const [content, setContent] = useState("")
   const [recordType, setRecordType] = useState<RecordType>("decision_made")
   const [visibility, setVisibility] = useState<Visibility>("private")
-  const [attachment, setAttachment] = useState<File | null>(null)
+  const [attachment, setAttachment] = useState<AttachmentMeta | null>(null)
   const [isDraft, setIsDraft] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { t } = useI18n()
 
@@ -33,22 +45,40 @@ export function EpochRecordForm() {
 
   const visibilityLabels: Record<Visibility, string> = {
     private: t("visibility.private"),
-    org_only: "組織限定",
     scout_visible: t("visibility.scout_visible"),
     public: t("visibility.public"),
   }
 
   const visibilityDescriptions: Record<Visibility, string> = {
     private: "自分のみ閲覧可能",
-    org_only: "所属組織のメンバーのみ閲覧可能",
     scout_visible: "URLを知る人のみ閲覧可能",
     public: "すべての人が閲覧可能",
   }
 
-  const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setAttachment(file)
+      try {
+        setError(null)
+        const arrayBuffer = await file.arrayBuffer()
+        if (!crypto?.subtle) {
+          throw new Error("この環境ではハッシュ計算ができません")
+        }
+        const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"))
+          reader.readAsDataURL(file)
+        })
+        setAttachment({ name: file.name, dataUrl, hash })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "画像の読み込みに失敗しました"
+        setError(message)
+        setAttachment(null)
+      }
     }
   }
 
@@ -67,13 +97,50 @@ export function EpochRecordForm() {
   const handleConfirmedSubmit = async () => {
     setShowConfirmation(false)
     setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSubmitting(false)
-    setIsDraft(false)
+    setError(null)
 
-    setContent("")
-    setAttachment(null)
-    setIsDraft(true)
+    if (!userId) {
+      setError("ログインが必要です")
+      setIsSubmitting(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          recordType,
+          payload: { content: content.trim() },
+          visibility,
+          attachments: attachment
+            ? [
+                {
+                  attachmentHash: attachment.hash,
+                  storagePointer: attachment.dataUrl,
+                },
+              ]
+            : [],
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Recordの確定に失敗しました")
+      }
+
+      setIsDraft(false)
+      setContent("")
+      setAttachment(null)
+      setIsDraft(true)
+      onRecordCreated?.()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Recordの確定に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const canSubmit = content.trim().length > 0 && !isSubmitting
@@ -167,6 +234,12 @@ export function EpochRecordForm() {
           {isSubmitting ? t("form.confirming") : t("form.confirm")}
         </Button>
       </div>
+
+      {error && (
+        <div className="mt-4 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
 
       <p className="mt-4 text-xs text-muted-foreground leading-relaxed">{t("form.warning")}</p>
 

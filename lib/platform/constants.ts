@@ -1,0 +1,2 @@
+export const ACCESS_TOKEN_TTL_MINUTES = 60;
+export const REFRESH_TOKEN_TTL_DAYS = 30;

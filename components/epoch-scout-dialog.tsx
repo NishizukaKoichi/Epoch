@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AlertTriangle, Building2, Briefcase, FileText, MessageSquare } from "@/components/icons"
+import { useAuth } from "@/lib/auth/context"
 
 interface ScoutInitiatorInfo {
   organization?: string
@@ -29,6 +30,8 @@ interface EpochScoutDialogProps {
   }
   mode: "send" | "receive"
   initiatorInfo?: ScoutInitiatorInfo
+  scoutId?: string
+  onCompleted?: () => void
 }
 
 // 固定文言 - 仕様書より
@@ -40,12 +43,16 @@ export function EpochScoutDialog({
   targetUser,
   mode,
   initiatorInfo,
+  scoutId,
+  onCompleted,
 }: EpochScoutDialogProps) {
+  const { userId } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [step, setStep] = useState<"info" | "confirm" | "response">(mode === "send" ? "info" : "response")
   const [responseComment, setResponseComment] = useState("")
   const [accepted, setAccepted] = useState<boolean | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Sender info state
   const [senderInfo, setSenderInfo] = useState<ScoutInitiatorInfo>({
@@ -55,18 +62,72 @@ export function EpochScoutDialog({
   })
 
   const handleSend = async () => {
+    if (!userId) {
+      setError("ログインが必要です")
+      return
+    }
     setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSubmitting(false)
-    setIsComplete(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/epoch/scouts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({
+          targetUserId: targetUser.userId,
+          initiatorOrgName: senderInfo.organization || null,
+          initiatorRole: senderInfo.role || null,
+          projectSummary: senderInfo.projectSummary || null,
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "スカウト送信に失敗しました")
+      }
+      setIsComplete(true)
+      onCompleted?.()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "スカウト送信に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleResponse = async (accept: boolean) => {
     setAccepted(accept)
+    if (!userId) {
+      setError("ログインが必要です")
+      return
+    }
+    if (!scoutId) {
+      setError("スカウトIDが見つかりません")
+      return
+    }
     setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSubmitting(false)
-    setIsComplete(true)
+    setError(null)
+    try {
+      const endpoint = accept ? "accept" : "decline"
+      const response = await fetch(`/api/epoch/scouts/${scoutId}/${endpoint}`, {
+        method: "POST",
+        headers: {
+          "x-user-id": userId,
+        },
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "スカウト応答に失敗しました")
+      }
+      setIsComplete(true)
+      onCompleted?.()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "スカウト応答に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const resetAndClose = () => {
@@ -75,6 +136,7 @@ export function EpochScoutDialog({
     setResponseComment("")
     setAccepted(null)
     setSenderInfo({ organization: "", role: "", projectSummary: "" })
+    setError(null)
     onOpenChange(false)
   }
 
@@ -291,6 +353,11 @@ export function EpochScoutDialog({
                   承諾すると、詳細を擦り合わせるチャットが開始されます。
                 </p>
               </>
+            )}
+            {error && (
+              <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </div>
             )}
           </div>
         ) : (

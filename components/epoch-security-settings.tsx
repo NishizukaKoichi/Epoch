@@ -6,31 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Key, Smartphone, Mail, Plus, Trash2 } from "@/components/icons"
 import { EpochRecoveryDialog } from "./epoch-recovery-dialog"
-
-interface Passkey {
-  id: string
-  name: string
-  createdAt: string
-  lastUsed: string
-}
-
-const mockPasskeys: Passkey[] = [
-  {
-    id: "pk_001",
-    name: "MacBook Pro - Touch ID",
-    createdAt: "2024-01-01T00:00:00Z",
-    lastUsed: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: "pk_002",
-    name: "iPhone 15 - Face ID",
-    createdAt: "2024-01-02T00:00:00Z",
-    lastUsed: "2024-01-14T18:00:00Z",
-  },
-]
+import { useAuth } from "@/lib/auth/context"
 
 export function EpochSecuritySettings() {
+  const { credentials } = useAuth()
   const [showRecovery, setShowRecovery] = useState(false)
+
+  const passkeys = credentials.filter((cred) => cred.type === "passkey")
+  const emailCredential = credentials.find((cred) => cred.type === "email")
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("ja-JP", {
@@ -53,25 +36,29 @@ export function EpochSecuritySettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {mockPasskeys.map((passkey) => (
-            <div
-              key={passkey.id}
-              className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/20"
-            >
-              <div className="flex items-center gap-4">
-                <Smartphone className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">{passkey.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    作成: {formatDate(passkey.createdAt)} / 最終使用: {formatDate(passkey.lastUsed)}
-                  </p>
+          {passkeys.length === 0 ? (
+            <p className="text-sm text-muted-foreground">登録済みのPasskeyはありません。</p>
+          ) : (
+            passkeys.map((passkey) => (
+              <div
+                key={passkey.id}
+                className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/20"
+              >
+                <div className="flex items-center gap-4">
+                  <Smartphone className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{passkey.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      作成: {formatDate(passkey.verifiedAt)} / 最終使用: {formatDate(passkey.verifiedAt)}
+                    </p>
+                  </div>
                 </div>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+            ))
+          )}
 
           <Button
             variant="outline"
@@ -100,12 +87,12 @@ export function EpochSecuritySettings() {
             <div className="flex items-center gap-4">
               <Mail className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium text-foreground">user@example.com</p>
+                <p className="text-sm font-medium text-foreground">{emailCredential?.label ?? "未登録"}</p>
                 <p className="text-xs text-muted-foreground">復旧用メールアドレス</p>
               </div>
             </div>
             <Badge variant="outline" className="border-green-500/30 text-green-400">
-              確認済み
+              {emailCredential ? "確認済み" : "未登録"}
             </Badge>
           </div>
         </CardContent>

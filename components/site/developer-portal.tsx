@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
   Key,
@@ -44,6 +44,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useI18n } from "@/lib/i18n/context"
+import { useAuth } from "@/lib/auth/context"
 
 type Scope = {
   id: string
@@ -123,46 +124,32 @@ const availableScopes: Scope[] = [
     enabled: false,
   },
   {
-    id: "magicspell.check",
-    name: "magicspell.check",
+    id: "spell.check",
+    name: "spell.check",
     description: "実行可否を照会",
-    product: "MagicSpell",
+    product: "Spell",
     pricing: "metered",
     enabled: false,
   },
 ]
 
-const mockKeys: DeveloperKey[] = [
-  {
-    id: "dk_001",
-    name: "Production App",
-    prefix: "dk_prod_a1b2",
-    created_at: "2025-01-15T10:00:00Z",
-    last_used_at: "2025-01-26T08:30:00Z",
-    scopes: ["talisman.verify", "pact.read", "magicspell.check"],
-    status: "active",
-    token_ttl: 60,
-  },
-  {
-    id: "dk_002",
-    name: "Development",
-    prefix: "dk_dev_c3d4",
-    created_at: "2025-01-20T14:00:00Z",
-    last_used_at: null,
-    scopes: ["epoch.read", "epoch.append"],
-    status: "active",
-    token_ttl: 1440,
-  },
-]
+const scopeConditionMap: Record<Scope["pricing"], "free" | "metered" | "review"> = {
+  free: "free",
+  metered: "metered",
+  requires_approval: "review",
+}
 
 export function DeveloperPortal() {
   const { language } = useI18n()
-  const [keys, setKeys] = useState<DeveloperKey[]>(mockKeys)
+  const { userId } = useAuth()
+  const [keys, setKeys] = useState<DeveloperKey[]>([])
   const [copied, setCopied] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [newKeyName, setNewKeyName] = useState("")
   const [selectedScopes, setSelectedScopes] = useState<string[]>([])
   const [createdKey, setCreatedKey] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
@@ -170,28 +157,139 @@ export function DeveloperPortal() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const handleCreateKey = () => {
-    if (!newKeyName || selectedScopes.length === 0) return
-    
-    const newKey: DeveloperKey = {
-      id: `dk_${Date.now()}`,
-      name: newKeyName,
-      prefix: `dk_${newKeyName.toLowerCase().replace(/\s/g, "_").slice(0, 4)}_${Math.random().toString(36).slice(2, 6)}`,
-      created_at: new Date().toISOString(),
-      last_used_at: null,
-      scopes: selectedScopes,
-      status: "active",
-      token_ttl: 60,
+  const loadKeys = async () => {
+    if (!userId) {
+      setKeys([])
+      return
     }
-    
-    setKeys([...keys, newKey])
-    setCreatedKey(`dk_${Math.random().toString(36).slice(2, 10)}_${Math.random().toString(36).slice(2, 30)}`)
-    setNewKeyName("")
-    setSelectedScopes([])
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/v1/developer-keys", {
+        headers: {
+          "x-user-id": userId,
+        },
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error ?? "Failed to load keys")
+      }
+
+      const payload = await response.json()
+      const fetchedKeys = await Promise.all(
+        (payload.keys ?? []).map(async (key: any) => {
+          const scopesResponse = await fetch(`/api/v1/developer-keys/${key.key_id}/scopes`, {
+            headers: {
+              "x-user-id": userId,
+            },
+          })
+          const scopesPayload = scopesResponse.ok
+            ? await scopesResponse.json()
+            : { scopes: [] }
+          const scopes = (scopesPayload.scopes ?? [])
+            .filter((scopeEntry: any) => scopeEntry.status === "granted")
+            .map((scopeEntry: any) => scopeEntry.scope)
+
+          return {
+            id: key.key_id,
+            name: key.name,
+            prefix: key.key_id,
+            created_at: key.created_at,
+            last_used_at: key.last_used_at,
+            scopes,
+            status: key.status,
+            token_ttl: key.token_ttl,
+          } as DeveloperKey
+        })
+      )
+
+      setKeys(fetchedKeys)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load keys"
+      setError(message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleRevokeKey = (id: string) => {
-    setKeys(keys.map(k => k.id === id ? { ...k, status: "revoked" as const } : k))
+  useEffect(() => {
+    void loadKeys()
+  }, [userId])
+
+  const handleCreateKey = async () => {
+    if (!newKeyName || selectedScopes.length === 0 || !userId) return
+
+    setError(null)
+    try {
+      const response = await fetch("/api/v1/developer-keys", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({ name: newKeyName }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error ?? "Failed to create key")
+      }
+
+      const payload = await response.json()
+      const keyId = payload.key_id as string
+      const keySecret = payload.key_secret as string
+
+      await Promise.all(
+        selectedScopes.map((scopeId) =>
+          fetch(`/api/v1/developer-keys/${keyId}/scopes`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": userId,
+            },
+            body: JSON.stringify({
+              scope: scopeId,
+              action: "grant",
+              conditionType:
+                scopeConditionMap[availableScopes.find((scope) => scope.id === scopeId)?.pricing ?? "requires_approval"],
+            }),
+          })
+        )
+      )
+
+      setCreatedKey(keySecret)
+      setNewKeyName("")
+      setSelectedScopes([])
+      await loadKeys()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create key"
+      setError(message)
+    }
+  }
+
+  const handleRevokeKey = async (id: string) => {
+    if (!userId) return
+    setError(null)
+    try {
+      const response = await fetch(`/api/v1/developer-keys/${id}/revoke`, {
+        method: "POST",
+        headers: {
+          "x-user-id": userId,
+        },
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error ?? "Failed to revoke key")
+      }
+      setKeys((prev) =>
+        prev.map((key) =>
+          key.id === id ? { ...key, status: "revoked" as const } : key
+        )
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to revoke key"
+      setError(message)
+    }
   }
 
   const toggleScope = (scopeId: string) => {
@@ -214,6 +312,11 @@ export function DeveloperPortal() {
             ? "APIキーを発行し、プロダクト群の能力をあなたのアプリケーションに組み込む"
             : "Issue API keys and integrate product capabilities into your applications"}
         </p>
+        {error && (
+          <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </div>
+        )}
       </div>
 
       {/* Flow Explanation */}
@@ -408,7 +511,11 @@ export function DeveloperPortal() {
           </Dialog>
         </div>
 
-        {keys.length === 0 ? (
+        {isLoading ? (
+          <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
+            {language === "ja" ? "読み込み中..." : "Loading..."}
+          </div>
+        ) : keys.length === 0 ? (
           <div className="rounded-lg border border-border bg-card p-12 text-center">
             <Key className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
@@ -531,7 +638,7 @@ const { access_token, expires_at, scopes } = await res.json()
 // scopes: このトークンで使えるスコープ一覧
 
 // 2. 短命トークンで各APIを呼ぶ
-const check = await fetch('https://api.koichinishizuka.com/v1/magicspell/check', {
+const check = await fetch('https://api.koichinishizuka.com/v1/spell/check', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer ' + access_token,

@@ -82,7 +82,7 @@ export function LibraryCard({
       <div className="flex flex-wrap gap-3">
         {hasSpec && (
           <Link
-            href={specHref || `/site/library/${id}`}
+            href={specHref || `/library/${id}`}
             className="inline-flex items-center gap-1.5 text-sm text-foreground hover:text-foreground/80 transition-colors"
           >
             {t("site.view_spec")}
@@ -91,7 +91,7 @@ export function LibraryCard({
         )}
         {hasValue && (
           <Link
-            href={`/site/library/${id}/value`}
+            href={`/library/${id}/value`}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             {t("site.view_value")}

@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -28,94 +27,77 @@ import {
 
 interface PublicMember {
   id: string
-  displayName: string
-  department: string
-  role: string
+  displayName: string | null
+  department: string | null
+  role: string | null
   recordCount: number
-  joinedAt: string
+  joinedAt: string | null
 }
 
 interface EpochOrgPublicViewProps {
   orgId: string
 }
 
-// Mock data
-const mockOrgInfo = {
-  id: "org_pub_001",
-  name: "株式会社テクノロジー",
-  industry: "IT・ソフトウェア",
-  location: "東京都",
-  memberCount: 150,
-  publicMemberCount: 42,
-  foundedAt: "2015-04-01",
-  description: "クラウドインフラストラクチャの開発・運用を行う企業です。",
+interface PublicOrganization {
+  id: string
+  name: string
+  industry: string | null
+  location: string | null
+  memberCount: number
+  publicMemberCount: number
+  foundedAt: string | null
+  description: string | null
 }
 
-const mockPublicMembers: PublicMember[] = [
-  {
-    id: "user_001",
-    displayName: "田中 太郎",
-    department: "エンジニアリング",
-    role: "テックリード",
-    recordCount: 156,
-    joinedAt: "2018-04-01",
-  },
-  {
-    id: "user_002",
-    displayName: "佐藤 花子",
-    department: "プロダクト",
-    role: "プロダクトマネージャー",
-    recordCount: 89,
-    joinedAt: "2019-07-15",
-  },
-  {
-    id: "user_003",
-    displayName: "山田 一郎",
-    department: "経営",
-    role: "CTO",
-    recordCount: 234,
-    joinedAt: "2015-04-01",
-  },
-  {
-    id: "user_004",
-    displayName: "鈴木 美咲",
-    department: "エンジニアリング",
-    role: "シニアエンジニア",
-    recordCount: 67,
-    joinedAt: "2020-01-10",
-  },
-  {
-    id: "user_005",
-    displayName: "高橋 健太",
-    department: "営業",
-    role: "営業マネージャー",
-    recordCount: 112,
-    joinedAt: "2017-09-01",
-  },
-  {
-    id: "user_006",
-    displayName: "伊藤 裕子",
-    department: "人事",
-    role: "人事部長",
-    recordCount: 78,
-    joinedAt: "2016-06-01",
-  },
-]
-
-const departments = ["すべて", "経営", "エンジニアリング", "プロダクト", "営業", "人事"]
-
 export function EpochOrgPublicView({ orgId }: EpochOrgPublicViewProps) {
+  const [orgInfo, setOrgInfo] = useState<PublicOrganization | null>(null)
+  const [members, setMembers] = useState<PublicMember[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterDepartment, setFilterDepartment] = useState("すべて")
   const [sortBy, setSortBy] = useState<"recordCount" | "name" | "joinedAt">("recordCount")
 
-  const filteredMembers = mockPublicMembers
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/epoch/orgs/${orgId}/public`)
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "組織情報の取得に失敗しました")
+        }
+        const data = (await response.json()) as { org: PublicOrganization; members: PublicMember[] }
+        setOrgInfo(data.org)
+        setMembers(data.members ?? [])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "組織情報の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [orgId])
+
+  const departments = useMemo(() => {
+    const values = new Set<string>()
+    for (const member of members) {
+      if (member.department) {
+        values.add(member.department)
+      }
+    }
+    return ["すべて", ...Array.from(values)]
+  }, [members])
+
+  const filteredMembers = members
     .filter((member) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         if (
-          !member.displayName.toLowerCase().includes(query) &&
-          !member.role.toLowerCase().includes(query)
+          !(member.displayName ?? member.id).toLowerCase().includes(query) &&
+          !(member.role ?? "").toLowerCase().includes(query)
         ) {
           return false
         }
@@ -130,9 +112,9 @@ export function EpochOrgPublicView({ orgId }: EpochOrgPublicViewProps) {
         case "recordCount":
           return b.recordCount - a.recordCount
         case "name":
-          return a.displayName.localeCompare(b.displayName)
+          return (a.displayName ?? a.id).localeCompare(b.displayName ?? b.id)
         case "joinedAt":
-          return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime()
+          return new Date(b.joinedAt ?? 0).getTime() - new Date(a.joinedAt ?? 0).getTime()
         default:
           return 0
       }
@@ -145,16 +127,26 @@ export function EpochOrgPublicView({ orgId }: EpochOrgPublicViewProps) {
       <main className="container max-w-5xl mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link href="/browse" className="hover:text-foreground transition-colors">
+          <Link href="/epoch/browse" className="hover:text-foreground transition-colors">
             一覧
           </Link>
           <ChevronRight className="h-4 w-4" />
-          <Link href="/browse/orgs" className="hover:text-foreground transition-colors">
+          <Link href="/epoch/browse/orgs" className="hover:text-foreground transition-colors">
             組織
           </Link>
           <ChevronRight className="h-4 w-4" />
-          <span className="text-foreground">{mockOrgInfo.name}</span>
+          <span className="text-foreground">{orgInfo?.name ?? "組織"}</span>
         </div>
+
+        {error && (
+          <div className="mb-6 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="mb-6 text-sm text-muted-foreground">読み込み中...</div>
+        )}
 
         {/* Organization Header */}
         <Card className="bg-card border-border mb-8">
@@ -165,26 +157,26 @@ export function EpochOrgPublicView({ orgId }: EpochOrgPublicViewProps) {
               </div>
               <div className="flex-1">
                 <h1 className="text-xl font-medium text-foreground mb-1">
-                  {mockOrgInfo.name}
+                  {orgInfo?.name ?? "組織名"}
                 </h1>
                 <p className="text-sm text-muted-foreground mb-3">
-                  {mockOrgInfo.description}
+                  {orgInfo?.description ?? ""}
                 </p>
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <Badge variant="outline" className="border-border text-muted-foreground">
-                    {mockOrgInfo.industry}
+                    {orgInfo?.industry ?? "不明"}
                   </Badge>
                   <span className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    {mockOrgInfo.location}
+                    {orgInfo?.location ?? "不明"}
                   </span>
                   <span className="flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    {mockOrgInfo.publicMemberCount} 人公開 / {mockOrgInfo.memberCount} 人
+                    {orgInfo?.publicMemberCount ?? 0} 人公開 / {orgInfo?.memberCount ?? 0} 人
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {new Date(mockOrgInfo.foundedAt).getFullYear()}年設立
+                    {orgInfo?.foundedAt ? `${new Date(orgInfo.foundedAt).getFullYear()}年設立` : "設立年不明"}
                   </span>
                 </div>
               </div>
@@ -251,29 +243,31 @@ export function EpochOrgPublicView({ orgId }: EpochOrgPublicViewProps) {
           {/* Members List */}
           <div className="space-y-2">
             {filteredMembers.map((member) => (
-              <Link key={member.id} href={`/user/${member.id}`}>
+              <Link key={member.id} href={`/epoch/user/${member.id}`}>
                 <Card className="bg-card border-border hover:border-muted-foreground/50 transition-colors cursor-pointer">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
                           <span className="text-sm font-medium text-foreground">
-                            {member.displayName.charAt(0)}
+                            {(member.displayName ?? member.id).charAt(0)}
                           </span>
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-foreground font-medium">
-                              {member.displayName}
+                              {member.displayName ?? member.id}
                             </span>
-                            <Badge
-                              variant="outline"
-                              className="border-border text-muted-foreground text-xs"
-                            >
-                              {member.department}
-                            </Badge>
+                            {member.department && (
+                              <Badge
+                                variant="outline"
+                                className="border-border text-muted-foreground text-xs"
+                              >
+                                {member.department}
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{member.role}</p>
+                          {member.role && <p className="text-sm text-muted-foreground">{member.role}</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -283,7 +277,7 @@ export function EpochOrgPublicView({ orgId }: EpochOrgPublicViewProps) {
                             {member.recordCount}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(member.joinedAt).getFullYear()}年入社
+                            {member.joinedAt ? `${new Date(member.joinedAt).getFullYear()}年入社` : "入社年不明"}
                           </p>
                         </div>
                         <ExternalLink className="h-4 w-4 text-muted-foreground" />

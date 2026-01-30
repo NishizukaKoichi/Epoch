@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Camera, Plus, X, Globe, Github, Linkedin, Twitter, Youtube, Instagram, FileText, Link2 } from "@/components/icons"
+import { useAuth } from "@/lib/auth/context"
 
 type LinkType =
   | "website"
@@ -39,6 +40,7 @@ interface ProfileData {
   bio: string
   avatarUrl: string | null
   links: ProfileLink[]
+  scoutVisible: boolean
 }
 
 const linkTypeConfig: Record<LinkType, { icon: React.ReactNode; label: string; placeholder: string }> = {
@@ -54,14 +56,62 @@ const linkTypeConfig: Record<LinkType, { icon: React.ReactNode; label: string; p
 }
 
 export function EpochProfileSettings() {
+  const { userId } = useAuth()
   const [profile, setProfile] = useState<ProfileData>({
     displayName: "",
     bio: "",
     avatarUrl: null,
     links: [],
+    scoutVisible: true,
   })
+  const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!userId) {
+      return
+    }
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/profile", {
+          headers: { "x-user-id": userId },
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "プロフィールの取得に失敗しました")
+        }
+        const data = (await response.json()) as {
+          profile: {
+            displayName: string | null
+            bio: string | null
+            avatarUrl: string | null
+            scoutVisible: boolean
+            links: ProfileLink[]
+          }
+        }
+        if (data.profile) {
+          setProfile({
+            displayName: data.profile.displayName ?? "",
+            bio: data.profile.bio ?? "",
+            avatarUrl: data.profile.avatarUrl ?? null,
+            links: data.profile.links ?? [],
+            scoutVisible: data.profile.scoutVisible ?? true,
+          })
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "プロフィールの取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [userId])
 
   const addLink = () => {
     const newLink: ProfileLink = {
@@ -89,15 +139,55 @@ export function EpochProfileSettings() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      const url = URL.createObjectURL(file)
-      setProfile((prev) => ({ ...prev, avatarUrl: url }))
+      const reader = new FileReader()
+      reader.onload = () => {
+        setProfile((prev) => ({ ...prev, avatarUrl: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
     }
   }
 
   const handleSave = async () => {
+    if (!userId) {
+      setError("ログインが必要です")
+      return
+    }
     setIsSaving(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSaving(false)
+    setError(null)
+    setSaved(false)
+    try {
+      const payload = {
+        displayName: profile.displayName.trim() || null,
+        bio: profile.bio.trim() || null,
+        avatarUrl: profile.avatarUrl,
+        scoutVisible: profile.scoutVisible,
+        links: profile.links
+          .filter((link) => link.url.trim().length > 0)
+          .map((link) => ({
+            type: link.type,
+            url: link.url.trim(),
+            label: link.label?.trim() || undefined,
+          })),
+      }
+      const response = await fetch("/api/epoch/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.error || "プロフィールの保存に失敗しました")
+      }
+      setSaved(true)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "プロフィールの保存に失敗しました"
+      setError(message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -108,6 +198,22 @@ export function EpochProfileSettings() {
           プロフィールは履歴を持たない表層データです。変更はEpochRecordを生成しません。
         </p>
       </div>
+
+      {isLoading && (
+        <div className="rounded border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          読み込み中...
+        </div>
+      )}
+      {error && (
+        <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+      {saved && !error && (
+        <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
+          保存しました
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Avatar */}

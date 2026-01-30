@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "@/components/icons"
 import { EpochPlanComparison } from "./epoch-plan-comparison"
+import { useAuth } from "@/lib/auth/context"
 
 interface EpochPaymentDialogProps {
   open: boolean
@@ -13,7 +14,13 @@ interface EpochPaymentDialogProps {
     displayName: string
     userId: string
   }
-  onPaymentSuccess?: (type: "time_window" | "read_session") => void
+  onPaymentSuccess?: (grant: {
+    type: "time_window" | "read_session"
+    endsAt?: string
+    windowEnd?: string
+    windowStart?: string
+    grantId: string
+  }) => void
 }
 
 type PaymentOption = "time_window" | "read_session"
@@ -30,9 +37,11 @@ const paymentOptions: Record<PaymentOption, { label: string; price: string }> = 
 }
 
 export function EpochPaymentDialog({ open, onOpenChange, targetUser, onPaymentSuccess }: EpochPaymentDialogProps) {
+  const { userId } = useAuth()
   const [selected, setSelected] = useState<PaymentOption | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSelectPlan = (plan: PaymentOption) => {
     setSelected(plan)
@@ -43,12 +52,48 @@ export function EpochPaymentDialog({ open, onOpenChange, targetUser, onPaymentSu
     if (!selected) return
 
     setIsProcessing(true)
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsProcessing(false)
-    setShowConfirmation(false)
-    onOpenChange(false)
-    onPaymentSuccess?.(selected)
+    setError(null)
+
+    if (!userId) {
+      setError("ログインが必要です")
+      setIsProcessing(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/billing/session/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          targetUserId: targetUser.userId,
+          type: selected,
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "課金セッションの開始に失敗しました")
+      }
+      const data = (await response.json()) as {
+        grant: {
+          grantId: string
+          type: PaymentOption
+          endsAt?: string
+          windowEnd?: string
+          windowStart?: string
+        }
+      }
+      setShowConfirmation(false)
+      onOpenChange(false)
+      if (data.grant) {
+        onPaymentSuccess?.(data.grant)
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "課金セッションの開始に失敗しました"
+      setError(message)
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const handleClose = (newOpen: boolean) => {
@@ -106,6 +151,12 @@ export function EpochPaymentDialog({ open, onOpenChange, targetUser, onPaymentSu
                 {isProcessing ? "処理中..." : "確定して支払う"}
               </Button>
             </div>
+
+            {error && (
+              <div className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </div>
+            )}
           </div>
         )}
       </DialogContent>

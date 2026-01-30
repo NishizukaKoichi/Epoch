@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -32,133 +32,13 @@ import {
 interface PublicOrganization {
   id: string
   name: string
-  industry: string
-  location: string
+  industry: string | null
+  location: string | null
   memberCount: number
   publicMemberCount: number
-  foundedAt: string
-  description?: string
+  foundedAt: string | null
+  description?: string | null
 }
-
-const mockOrganizations: PublicOrganization[] = [
-  {
-    id: "org_pub_001",
-    name: "株式会社テクノロジー",
-    industry: "IT・ソフトウェア",
-    location: "日本",
-    memberCount: 150,
-    publicMemberCount: 42,
-    foundedAt: "2015-04-01",
-    description: "クラウドインフラストラクチャの開発・運用",
-  },
-  {
-    id: "org_pub_002",
-    name: "TechVentures Inc.",
-    industry: "IT・ソフトウェア",
-    location: "アメリカ",
-    memberCount: 85,
-    publicMemberCount: 52,
-    foundedAt: "2018-03-01",
-    description: "AI/ML Platform Development",
-  },
-  {
-    id: "org_pub_003",
-    name: "Deutsche Industrie GmbH",
-    industry: "製造",
-    location: "ドイツ",
-    memberCount: 1200,
-    publicMemberCount: 180,
-    foundedAt: "1952-08-20",
-    description: "Precision Engineering & Manufacturing",
-  },
-  {
-    id: "org_pub_004",
-    name: "Singapore Consulting Pte Ltd",
-    industry: "コンサルティング",
-    location: "シンガポール",
-    memberCount: 80,
-    publicMemberCount: 45,
-    foundedAt: "2012-06-01",
-    description: "APAC Strategy & Digital Transformation",
-  },
-  {
-    id: "org_pub_005",
-    name: "グローバル商事株式会社",
-    industry: "商社",
-    location: "日本",
-    memberCount: 2000,
-    publicMemberCount: 320,
-    foundedAt: "1960-03-10",
-  },
-  {
-    id: "org_pub_006",
-    name: "Creative Studio London",
-    industry: "デザイン・クリエイティブ",
-    location: "イギリス",
-    memberCount: 25,
-    publicMemberCount: 22,
-    foundedAt: "2019-11-01",
-    description: "Brand Identity & Digital Design",
-  },
-  {
-    id: "org_pub_007",
-    name: "金融サービス株式会社",
-    industry: "金融",
-    location: "日本",
-    memberCount: 800,
-    publicMemberCount: 95,
-    foundedAt: "1998-02-15",
-  },
-  {
-    id: "org_pub_008",
-    name: "HealthTech India Pvt Ltd",
-    industry: "医療・ヘルスケア",
-    location: "インド",
-    memberCount: 120,
-    publicMemberCount: 68,
-    foundedAt: "2020-05-01",
-    description: "Telemedicine & Rural Healthcare",
-  },
-  {
-    id: "org_pub_009",
-    name: "Nordic Fintech AB",
-    industry: "金融",
-    location: "スウェーデン",
-    memberCount: 45,
-    publicMemberCount: 38,
-    foundedAt: "2019-01-15",
-    description: "Open Banking Solutions",
-  },
-  {
-    id: "org_pub_010",
-    name: "São Paulo Tech Ltda",
-    industry: "IT・ソフトウェア",
-    location: "ブラジル",
-    memberCount: 65,
-    publicMemberCount: 42,
-    foundedAt: "2017-07-01",
-    description: "E-commerce & Payments",
-  },
-  {
-    id: "org_pub_011",
-    name: "Dubai Investments LLC",
-    industry: "金融",
-    location: "UAE",
-    memberCount: 200,
-    publicMemberCount: 55,
-    foundedAt: "2008-04-01",
-  },
-  {
-    id: "org_pub_012",
-    name: "Beijing AI Research",
-    industry: "IT・ソフトウェア",
-    location: "中国",
-    memberCount: 350,
-    publicMemberCount: 120,
-    foundedAt: "2016-09-01",
-    description: "Computer Vision & NLP Research",
-  },
-]
 
 // Comprehensive industry categories
 const industryCategories: Record<string, string[]> = {
@@ -474,16 +354,41 @@ export function EpochOrgDirectory() {
   const [sortDesc, setSortDesc] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>("category")
+  const [organizations, setOrganizations] = useState<PublicOrganization[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const locations = allLocations; // Declare the locations variable
 
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/directory/orgs")
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "組織一覧の取得に失敗しました")
+        }
+        const data = (await response.json()) as { orgs: PublicOrganization[] }
+        setOrganizations(data.orgs ?? [])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "組織一覧の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   const filteredOrgs = useMemo(() => {
-    let result = mockOrganizations.filter((org) => {
+    let result = organizations.filter((org) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         if (
           !org.name.toLowerCase().includes(query) &&
-          !org.description?.toLowerCase().includes(query)
+          !(org.description ?? "").toLowerCase().includes(query)
         ) {
           return false
         }
@@ -507,7 +412,7 @@ export function EpochOrgDirectory() {
           comparison = a.publicMemberCount - b.publicMemberCount
           break
         case "foundedAt":
-          comparison = new Date(a.foundedAt).getTime() - new Date(b.foundedAt).getTime()
+          comparison = new Date(a.foundedAt ?? 0).getTime() - new Date(b.foundedAt ?? 0).getTime()
           break
       }
       return sortDesc ? -comparison : comparison
@@ -520,10 +425,11 @@ export function EpochOrgDirectory() {
   const groupedOrgs = useMemo(() => {
     const groups: Record<string, PublicOrganization[]> = {}
     for (const org of filteredOrgs) {
-      if (!groups[org.industry]) {
-        groups[org.industry] = []
+      const industry = org.industry ?? "不明"
+      if (!groups[industry]) {
+        groups[industry] = []
       }
-      groups[org.industry].push(org)
+      groups[industry].push(org)
     }
     // Sort industries by number of organizations
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length)
@@ -546,7 +452,7 @@ export function EpochOrgDirectory() {
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Link href="/browse" className="hover:text-foreground transition-colors">
+            <Link href="/epoch/browse" className="hover:text-foreground transition-colors">
               ユーザー一覧
             </Link>
             <ChevronRight className="h-4 w-4" />
@@ -558,10 +464,16 @@ export function EpochOrgDirectory() {
           </p>
         </div>
 
+        {error && (
+          <div className="mb-6 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+
         {/* Tab navigation */}
         <div className="flex gap-4 mb-6 border-b border-border">
           <Link
-            href="/browse"
+            href="/epoch/browse"
             className="pb-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             ユーザー
@@ -728,7 +640,7 @@ export function EpochOrgDirectory() {
         <div className="flex items-center justify-between mb-4">
           <div className="text-xs text-muted-foreground">
             {filteredOrgs.length} 件の組織
-            {hasActiveFilters && ` / ${mockOrganizations.length} 件中`}
+            {hasActiveFilters && ` / ${organizations.length} 件中`}
           </div>
           <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
             <button
@@ -757,7 +669,9 @@ export function EpochOrgDirectory() {
         </div>
 
         {/* Organization List or Category View */}
-        {viewMode === "category" ? (
+        {isLoading ? (
+          <div className="py-12 text-center text-muted-foreground">読み込み中...</div>
+        ) : viewMode === "category" ? (
           <div className="space-y-8">
             {groupedOrgs.map(([industry, orgs]) => (
               <div key={industry}>
@@ -769,7 +683,7 @@ export function EpochOrgDirectory() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {orgs.map((org) => (
-                    <Link key={org.id} href={`/org/${org.id}/public`}>
+                    <Link key={org.id} href={`/epoch/org/${org.id}/public`}>
                       <Card className="bg-card border-border hover:border-muted-foreground/50 transition-colors cursor-pointer h-full">
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between">
@@ -780,7 +694,7 @@ export function EpochOrgDirectory() {
                               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
-                                  {org.location}
+                                  {org.location ?? "不明"}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Users className="h-3 w-3" />
@@ -811,7 +725,7 @@ export function EpochOrgDirectory() {
         ) : (
           <div className="space-y-3">
             {filteredOrgs.map((org) => (
-              <Link key={org.id} href={`/org/${org.id}/public`}>
+              <Link key={org.id} href={`/epoch/org/${org.id}/public`}>
                 <Card className="bg-card border-border hover:border-muted-foreground/50 transition-colors cursor-pointer">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
@@ -831,11 +745,11 @@ export function EpochOrgDirectory() {
 
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                           <Badge variant="outline" className="border-border text-muted-foreground">
-                            {org.industry}
+                            {org.industry ?? "不明"}
                           </Badge>
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            {org.location}
+                            {org.location ?? "不明"}
                           </span>
                           <span className="flex items-center gap-1">
                             <Users className="h-3 w-3" />
@@ -843,7 +757,7 @@ export function EpochOrgDirectory() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(org.foundedAt).getFullYear()}年設立
+                            {org.foundedAt ? `${new Date(org.foundedAt).getFullYear()}年設立` : "設立年不明"}
                           </span>
                         </div>
                       </div>

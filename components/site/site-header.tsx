@@ -9,11 +9,11 @@ import { useI18n } from "@/lib/i18n/context"
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { key: "site.nav.library", href: "/site/library" },
-  { key: "site.nav.developers", href: "/site/developers" },
-  { key: "site.nav.notes", href: "/site/notes" },
-  { key: "site.nav.about", href: "/site/about" },
-  { key: "site.nav.contact", href: "/site/contact" },
+  { key: "site.nav.library", href: "/library" },
+  { key: "site.nav.developers", href: "/developers" },
+  { key: "site.nav.notes", href: "/notes" },
+  { key: "site.nav.about", href: "/about" },
+  { key: "site.nav.contact", href: "/contact" },
 ] as const
 
 export function SiteHeader() {
@@ -22,7 +22,7 @@ export function SiteHeader() {
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const isHomePage = pathname === "/site"
+  const isHomePage = pathname === "/"
 
   const handleBack = () => {
     router.back()
@@ -44,7 +44,7 @@ export function SiteHeader() {
             </Button>
           )}
           <Link 
-            href="/site" 
+            href="/" 
             className="text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
           >
             {t("site.name")}

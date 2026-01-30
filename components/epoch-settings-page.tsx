@@ -15,10 +15,6 @@ import { Download } from "@/components/icons"
 export function EpochSettingsPage() {
   const [showExport, setShowExport] = useState(false)
 
-  const handleSilenceSettingsSave = (days: number, autoGenerate: boolean) => {
-    console.log("Silence settings saved:", { days, autoGenerate })
-  }
-
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -64,7 +60,7 @@ export function EpochSettingsPage() {
         </TabsContent>
 
         <TabsContent value="silence">
-          <EpochSilenceSettings currentDays={7} autoGenerate={true} onSave={handleSilenceSettingsSave} />
+          <EpochSilenceSettings />
         </TabsContent>
 
         <TabsContent value="security">

@@ -13,16 +13,16 @@ export function SiteFooter() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           {/* Links */}
           <nav className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <Link href="/site/library" className="hover:text-foreground transition-colors">
+            <Link href="/library" className="hover:text-foreground transition-colors">
               {t("site.nav.library")}
             </Link>
-            <Link href="/site/notes" className="hover:text-foreground transition-colors">
+            <Link href="/notes" className="hover:text-foreground transition-colors">
               {t("site.nav.notes")}
             </Link>
-            <Link href="/site/about" className="hover:text-foreground transition-colors">
+            <Link href="/about" className="hover:text-foreground transition-colors">
               {t("site.nav.about")}
             </Link>
-            <Link href="/site/contact" className="hover:text-foreground transition-colors">
+            <Link href="/contact" className="hover:text-foreground transition-colors">
               {t("site.nav.contact")}
             </Link>
           </nav>

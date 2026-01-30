@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createEpochRecord } from "../../../lib/epoch-records";
+import { ensureProfile } from "../../../lib/epoch/profiles";
+import { audit } from "../../../lib/audit";
 
 export const runtime = "nodejs";
 
@@ -21,12 +23,19 @@ export async function POST(request: Request) {
   }
 
   try {
+    await ensureProfile(userId);
     const record = await createEpochRecord({
       userId,
       recordType,
       payload,
       visibility,
       attachments,
+    });
+
+    await audit("record_created", {
+      actorUserId: userId,
+      details: recordType,
+      recordId: record.recordId,
     });
 
     return NextResponse.json({ record });

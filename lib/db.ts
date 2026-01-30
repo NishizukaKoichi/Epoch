@@ -10,6 +10,14 @@ export type DbClient = {
 
 const globalStore = globalThis as unknown as { __dbClient?: DbClient };
 
+export function setDbClient(client: DbClient): void {
+  globalStore.__dbClient = client;
+}
+
+export function hasDbClient(): boolean {
+  return !!globalStore.__dbClient;
+}
+
 export function getDbClient(): DbClient {
   if (!globalStore.__dbClient) {
     throw new Error("DB client not configured");

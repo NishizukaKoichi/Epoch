@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -14,24 +14,52 @@ interface EpochSearchUserProps {
 
 interface UserResult {
   userId: string
-  displayName: string
+  displayName: string | null
   recordCount: number
 }
-
-const mockResults: UserResult[] = [
-  { userId: "user_abc123", displayName: "山田太郎", recordCount: 47 },
-  { userId: "user_def456", displayName: "佐藤花子", recordCount: 123 },
-  { userId: "user_ghi789", displayName: "田中一郎", recordCount: 8 },
-]
 
 export function EpochSearchUser({ open, onOpenChange, onSelectUser }: EpochSearchUserProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<UserResult[]>([])
+  const [allUsers, setAllUsers] = useState<UserResult[]>([])
   const [searched, setSearched] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("/api/epoch/directory/users")
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "ユーザー一覧の取得に失敗しました")
+        }
+        const data = (await response.json()) as { users: UserResult[] }
+        setAllUsers(data.users ?? [])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "ユーザー一覧の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [open])
 
   const handleSearch = () => {
     if (query.trim()) {
-      setResults(mockResults.filter((u) => u.userId.includes(query) || u.displayName.includes(query)))
+      const normalized = query.trim().toLowerCase()
+      setResults(
+        allUsers.filter((u) =>
+          u.userId.toLowerCase().includes(normalized) ||
+          (u.displayName ?? "").toLowerCase().includes(normalized)
+        )
+      )
       setSearched(true)
     }
   }
@@ -66,7 +94,17 @@ export function EpochSearchUser({ open, onOpenChange, onSelectUser }: EpochSearc
             </Button>
           </div>
 
-          {searched && (
+          {error && (
+            <div className="text-xs text-destructive border border-destructive/30 bg-destructive/10 px-3 py-2 rounded">
+              {error}
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="text-sm text-muted-foreground">読み込み中...</div>
+          )}
+
+          {searched && !isLoading && (
             <div className="space-y-2">
               {results.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">該当するユーザーが見つかりません</div>
@@ -82,7 +120,7 @@ export function EpochSearchUser({ open, onOpenChange, onSelectUser }: EpochSearc
                         <User className="h-5 w-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">{user.displayName}</p>
+                        <p className="text-sm font-medium text-foreground">{user.displayName ?? user.userId}</p>
                         <p className="text-xs text-muted-foreground font-mono">{user.userId}</p>
                       </div>
                       <div className="text-xs text-muted-foreground">{user.recordCount} records</div>

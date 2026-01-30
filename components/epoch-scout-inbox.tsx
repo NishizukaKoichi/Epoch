@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { EpochScoutDialog } from "./epoch-scout-dialog"
 import { Send, Inbox, CheckCircle2, MessageSquare, Building2, Briefcase } from "@/components/icons"
 import Link from "next/link"
+import { useAuth } from "@/lib/auth/context"
 
 interface ScoutInitiatorInfo {
   organization?: string
@@ -28,86 +29,58 @@ interface ScoutMessage {
   hasConversation?: boolean
 }
 
-const mockReceived: ScoutMessage[] = [
-  {
-    id: "scout_001",
-    fromUserId: "user_abc123",
-    fromDisplayName: "田中 太郎",
-    status: "pending",
-    sentAt: "2024-01-15T10:00:00Z",
-    initiatorInfo: {
-      organization: "株式会社テクノロジー",
-      role: "エンジニアリングマネージャー",
-      projectSummary: "新規プロダクト開発チームのテックリード募集",
-    },
-  },
-  {
-    id: "scout_002",
-    fromUserId: "user_def456",
-    fromDisplayName: "佐藤 花子",
-    status: "in_discussion",
-    sentAt: "2024-01-10T14:00:00Z",
-    respondedAt: "2024-01-10T15:00:00Z",
-    hasConversation: true,
-    initiatorInfo: {
-      organization: "スタートアップ株式会社",
-      role: "CEO",
-    },
-  },
-  {
-    id: "scout_005",
-    fromUserId: "user_xyz999",
-    fromDisplayName: "山田 次郎",
-    status: "completed",
-    sentAt: "2024-01-05T09:00:00Z",
-    respondedAt: "2024-01-05T10:00:00Z",
-    hasConversation: true,
-    initiatorInfo: {
-      organization: "大手企業株式会社",
-    },
-  },
-]
-
-const mockSent: ScoutMessage[] = [
-  {
-    id: "scout_003",
-    toUserId: "user_ghi789",
-    toDisplayName: "鈴木 一郎",
-    status: "pending",
-    sentAt: "2024-01-14T09:00:00Z",
-  },
-  {
-    id: "scout_004",
-    toUserId: "user_jkl012",
-    toDisplayName: "高橋 美咲",
-    status: "declined",
-    sentAt: "2024-01-08T11:00:00Z",
-    respondedAt: "2024-01-09T10:00:00Z",
-  },
-  {
-    id: "scout_006",
-    toUserId: "user_mno345",
-    toDisplayName: "伊藤 健太",
-    status: "in_discussion",
-    sentAt: "2024-01-12T15:00:00Z",
-    respondedAt: "2024-01-12T16:00:00Z",
-    hasConversation: true,
-  },
-]
-
 export function EpochScoutInbox() {
+  const { userId } = useAuth()
   const [showDialog, setShowDialog] = useState(false)
   const [dialogMode, setDialogMode] = useState<"send" | "receive">("send")
   const [selectedUser, setSelectedUser] = useState<{ displayName: string; userId: string } | null>(null)
+  const [selectedScoutId, setSelectedScoutId] = useState<string | null>(null)
+  const [received, setReceived] = useState<ScoutMessage[]>([])
+  const [sent, setSent] = useState<ScoutMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadScouts = useCallback(async () => {
+    if (!userId) {
+      setReceived([])
+      setSent([])
+      return
+    }
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/epoch/scouts", {
+        headers: { "x-user-id": userId },
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "スカウトの取得に失敗しました")
+      }
+      const data = (await response.json()) as { received: ScoutMessage[]; sent: ScoutMessage[] }
+      setReceived(data.received ?? [])
+      setSent(data.sent ?? [])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "スカウトの取得に失敗しました"
+      setError(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    loadScouts()
+  }, [loadScouts])
 
   const handleOpenSendDialog = () => {
     setDialogMode("send")
     setSelectedUser({ displayName: "", userId: "" })
+    setSelectedScoutId(null)
     setShowDialog(true)
   }
 
   const handleOpenReceiveDialog = (scout: ScoutMessage) => {
     setDialogMode("receive")
+    setSelectedScoutId(scout.id)
     setSelectedUser({
       displayName: scout.fromDisplayName || scout.fromUserId || "Unknown",
       userId: scout.fromUserId || "",
@@ -209,7 +182,7 @@ export function EpochScoutInbox() {
         )}
 
         {scout.hasConversation && ["accepted", "in_discussion", "completed"].includes(scout.status) && (
-          <Link href={`/scout/${scout.id}`} className="flex-1">
+          <Link href={`/epoch/scout/${scout.id}`} className="flex-1">
             <Button
               size="sm"
               variant={scout.status === "in_discussion" ? "default" : "outline"}
@@ -254,27 +227,35 @@ export function EpochScoutInbox() {
         <TabsList className="bg-muted border border-border">
           <TabsTrigger value="received" className="data-[state=active]:bg-background gap-2">
             <Inbox className="h-4 w-4" />
-            受信 ({mockReceived.length})
+            受信 ({received.length})
           </TabsTrigger>
           <TabsTrigger value="sent" className="data-[state=active]:bg-background gap-2">
             <Send className="h-4 w-4" />
-            送信 ({mockSent.length})
+            送信 ({sent.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="received" className="space-y-4">
-          {mockReceived.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">読み込み中...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-destructive">{error}</div>
+          ) : received.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">受信したスカウトはありません</div>
           ) : (
-            mockReceived.map((scout) => <ScoutCard key={scout.id} scout={scout} type="received" />)
+            received.map((scout) => <ScoutCard key={scout.id} scout={scout} type="received" />)
           )}
         </TabsContent>
 
         <TabsContent value="sent" className="space-y-4">
-          {mockSent.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">読み込み中...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-destructive">{error}</div>
+          ) : sent.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">送信したスカウトはありません</div>
           ) : (
-            mockSent.map((scout) => <ScoutCard key={scout.id} scout={scout} type="sent" />)
+            sent.map((scout) => <ScoutCard key={scout.id} scout={scout} type="sent" />)
           )}
         </TabsContent>
       </Tabs>
@@ -285,7 +266,19 @@ export function EpochScoutInbox() {
       </div>
 
       {selectedUser && (
-        <EpochScoutDialog open={showDialog} onOpenChange={setShowDialog} targetUser={selectedUser} mode={dialogMode} />
+        <EpochScoutDialog
+          open={showDialog}
+          onOpenChange={setShowDialog}
+          targetUser={selectedUser}
+          mode={dialogMode}
+          scoutId={selectedScoutId ?? undefined}
+          initiatorInfo={
+            dialogMode === "receive"
+              ? received.find((scout) => scout.id === selectedScoutId)?.initiatorInfo
+              : undefined
+          }
+          onCompleted={loadScouts}
+        />
       )}
     </div>
   )

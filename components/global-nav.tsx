@@ -32,8 +32,8 @@ const products = [
     id: "epoch",
     name: "Epoch",
     description: "不可逆な時間の記録",
-    landingHref: "/landing",
-    appHref: "/",
+    landingHref: "/epoch/landing",
+    appHref: "/epoch",
     icon: Clock,
     disabled: false,
     productType: "epoch",
@@ -59,14 +59,14 @@ const products = [
     productType: "pact",
   },
   {
-    id: "magicspell",
-    name: "MagicSpell",
+    id: "spell",
+    name: "Spell",
     description: "権利付与・配布制御",
-    landingHref: "/magicspell/landing",
-    appHref: "/magicspell",
+    landingHref: "/spell/landing",
+    appHref: "/spell",
     icon: Wand2,
     disabled: false,
-    productType: "magicspell",
+    productType: "spell",
   },
 ]
 
@@ -78,14 +78,7 @@ export function GlobalNav() {
   const canAccessApp = isLoggedIn && hasMinimumCredentials
   
   // Determine which product is currently active
-  const isEpochActive = pathname === "/" || 
-    pathname.startsWith("/landing") || 
-    pathname.startsWith("/browse") || 
-    pathname.startsWith("/scout") || 
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/profile") ||
-    pathname.startsWith("/org") ||
-    pathname.startsWith("/user")
+  const isEpochActive = pathname === "/epoch" || pathname.startsWith("/epoch/")
   
   const isTalismanActive = pathname.startsWith("/talisman")
   
@@ -93,16 +86,21 @@ export function GlobalNav() {
   
   const isPactActive = pathname.startsWith("/pact")
   
-  const isMagicSpellActive = pathname.startsWith("/magicspell")
+  const isSpellActive = pathname.startsWith("/spell")
   
-  const isSiteActive = pathname.startsWith("/site")
+  const isSiteActive = pathname === "/" ||
+    pathname.startsWith("/library") ||
+    pathname.startsWith("/notes") ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/contact") ||
+    pathname.startsWith("/developers")
 
   return (
     <div className="border-b border-border bg-muted/30">
       <div className="mx-auto flex h-10 max-w-4xl items-center justify-between px-4">
         {/* Origin link */}
         <Link
-          href="/site"
+          href="/"
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <span className="font-medium">Koichi Nishizuka</span>
@@ -124,7 +122,7 @@ export function GlobalNav() {
             
             {products.map((product) => {
               const Icon = product.icon
-              const isCurrent = product.productType === "epoch" ? isEpochActive : product.productType === "talisman" ? isTalismanActive : product.productType === "sigil" ? isSigilActive : product.productType === "pact" ? isPactActive : product.productType === "magicspell" ? isMagicSpellActive : false
+              const isCurrent = product.productType === "epoch" ? isEpochActive : product.productType === "talisman" ? isTalismanActive : product.productType === "sigil" ? isSigilActive : product.productType === "pact" ? isPactActive : product.productType === "spell" ? isSpellActive : false
               
               if (product.disabled) {
                 return (
@@ -170,7 +168,7 @@ export function GlobalNav() {
             <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem asChild>
               <Link
-                href="/site"
+                href="/"
                 className="flex items-center gap-2 cursor-pointer text-muted-foreground"
               >
                 <span className="text-sm">Koichinishizuka.com へ</span>

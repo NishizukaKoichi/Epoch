@@ -126,7 +126,7 @@ export function EpochContextSwitcher({
         <DropdownMenuSeparator className="bg-border" />
         <DropdownMenuItem asChild>
           <Link
-            href="/browse/orgs"
+            href="/epoch/browse/orgs"
             className="flex items-center gap-2 cursor-pointer text-muted-foreground"
           >
             <Plus className="h-4 w-4" />

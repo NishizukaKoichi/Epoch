@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { Shield, Lock, ArrowRight } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/lib/i18n/context"
+import { getStoredPersonId } from "@/lib/talisman/client"
 
 interface TalismanAuthGuardProps {
   children: React.ReactNode
@@ -14,23 +15,48 @@ interface TalismanAuthGuardProps {
   serviceIcon: React.ReactNode
 }
 
-// Mock: 本来はTalisman APIで認証状態を確認
+type CredentialSummary = {
+  credential_id: string
+  revoked_at: string | null
+}
+
 const useAuthStatus = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Simulate auth check
     const checkAuth = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      // Demo: 常に認証済みとする（本番では実際の認証状態を確認）
-      setIsAuthenticated(true)
-      setIsLoading(false)
+      try {
+        const personId = getStoredPersonId()
+        if (!personId) {
+          setIsAuthenticated(false)
+          setIsLoading(false)
+          return
+        }
+
+        const response = await fetch(`/api/v1/talisman/credentials?person_id=${personId}`)
+        if (!response.ok) {
+          throw new Error("認証状態の取得に失敗しました")
+        }
+        const data = (await response.json()) as { credentials: CredentialSummary[] }
+        const hasActiveCredential = data.credentials.some(
+          (credential) => !credential.revoked_at
+        )
+        setIsAuthenticated(hasActiveCredential)
+        setIsLoading(false)
+      } catch (fetchError) {
+        const message =
+          fetchError instanceof Error ? fetchError.message : "認証状態の取得に失敗しました"
+        setError(message)
+        setIsAuthenticated(false)
+        setIsLoading(false)
+      }
     }
     checkAuth()
   }, [])
 
-  return { isAuthenticated, isLoading }
+  return { isAuthenticated, isLoading, error }
 }
 
 export function TalismanAuthGuard({
@@ -40,7 +66,7 @@ export function TalismanAuthGuard({
 }: TalismanAuthGuardProps) {
   const router = useRouter()
   const { t } = useI18n()
-  const { isAuthenticated, isLoading } = useAuthStatus()
+  const { isAuthenticated, isLoading, error } = useAuthStatus()
 
   if (isLoading) {
     return (
@@ -71,6 +97,12 @@ export function TalismanAuthGuard({
               Talismanで認証手段を登録し、ログインしてください。
               すべてのサービスに統一IDでアクセスできます。
             </p>
+
+            {error && (
+              <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </div>
+            )}
 
             {/* Talisman Badge */}
             <div className="mb-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">

@@ -18,7 +18,7 @@ Status: Final / Implementation-Complete Spec
 ・Developer（第三者）  
 ・koichinishizuka.com（入口 / 認証 / Key 管理）  
 ・Talisman（本人性 / 一意性）  
-・Product APIs（Epoch / Pact / Sigil / Talisman / MagicSpell）
+・Product APIs（Epoch / Pact / Sigil / Talisman / Spell）
 
 責任は分離される。
 
@@ -66,7 +66,7 @@ Developer Key は **短命トークン発行のためだけ**に使用する。
 ・pact.read / pact.write（契約状態の読取 / 遷移）  
 ・epoch.append / epoch.read（記録の追記 / 閲覧）  
 ・sigil.issue / sigil.verify（証明の発行 / 検証）  
-・magicspell.check（実行可否照会）
+・spell.check（実行可否照会）
 
 ### 5.2 付与条件
 
@@ -171,6 +171,7 @@ GET  /v1/developer-keys/{key_id}/scopes
 ```
 POST /v1/tokens
 POST /v1/tokens/refresh
+POST /v1/token        (alias)
 ```
 
 ### Product APIs（例）
@@ -183,7 +184,7 @@ GET  /v1/pact/state        (pact.read)
 POST /v1/sigil/issue       (sigil.issue)
 POST /v1/sigil/verify      (sigil.verify)
 POST /v1/talisman/verify   (talisman.verify)
-POST /v1/magicspell/check  (magicspell.check)
+POST /v1/spell/check  (spell.check)
 ```
 
 ---

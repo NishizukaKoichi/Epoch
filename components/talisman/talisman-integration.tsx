@@ -1,29 +1,170 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Copy, Check, Eye, EyeOff, RefreshCw, Code, Webhook, Shield } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useI18n } from "@/lib/i18n/context"
+import { ensurePersonId } from "@/lib/talisman/client"
 
-const mockApiKey = "tls_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+type DeveloperKey = {
+  keyId: string
+  name: string
+  status: "active" | "revoked"
+  createdAt: string
+}
 
 export function TalismanIntegration() {
   const { t } = useI18n()
   const [showApiKey, setShowApiKey] = useState(false)
   const [copied, setCopied] = useState(false)
   const [webhookUrl, setWebhookUrl] = useState("")
+  const [keys, setKeys] = useState<DeveloperKey[]>([])
+  const [keySecret, setKeySecret] = useState<string | null>(null)
+  const [ownerId, setOwnerId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const activeKey = useMemo(
+    () => keys.find((key) => key.status === "active") ?? null,
+    [keys]
+  )
+  const displayKey = keySecret ?? activeKey?.keyId ?? ""
+
+  useEffect(() => {
+    let active = true
+
+    const load = async () => {
+      try {
+        const personId = await ensurePersonId()
+        if (!active) return
+        setOwnerId(personId)
+
+        const response = await fetch(`/api/v1/developer-keys?owner_user_id=${encodeURIComponent(personId)}`)
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "Developer Keyの取得に失敗しました")
+        }
+        const data = (await response.json()) as {
+          keys: Array<{
+            key_id: string
+            name: string
+            status: "active" | "revoked"
+            created_at: string
+          }>
+        }
+        if (!active) return
+        setKeys(
+          data.keys.map((key) => ({
+            keyId: key.key_id,
+            name: key.name,
+            status: key.status,
+            createdAt: key.created_at,
+          }))
+        )
+        setError(null)
+      } catch (err) {
+        if (!active) return
+        const message = err instanceof Error ? err.message : "Developer Keyの取得に失敗しました"
+        setError(message)
+      } finally {
+        if (active) setIsLoading(false)
+      }
+    }
+
+    load()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const copyApiKey = () => {
-    navigator.clipboard.writeText(mockApiKey)
+    if (!displayKey) return
+    navigator.clipboard.writeText(displayKey)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const createKey = async () => {
+    if (!ownerId) return
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/v1/developer-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_user_id: ownerId,
+          name: "default",
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Developer Keyの作成に失敗しました")
+      }
+      const data = (await response.json()) as {
+        key: {
+          key_id: string
+          key_secret: string
+          name: string
+          status: "active" | "revoked"
+          created_at: string
+        }
+      }
+      setKeys((prev) => [
+        {
+          keyId: data.key.key_id,
+          name: data.key.name,
+          status: data.key.status,
+          createdAt: data.key.created_at,
+        },
+        ...prev,
+      ])
+      setKeySecret(data.key.key_secret)
+      setError(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Developer Keyの作成に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const rotateKey = async () => {
+    if (!ownerId || !activeKey) return
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/v1/developer-keys/${activeKey.keyId}/rotate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ owner_user_id: ownerId }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Developer Keyの更新に失敗しました")
+      }
+      const data = (await response.json()) as { key_secret: string }
+      setKeySecret(data.key_secret)
+      setError(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Developer Keyの更新に失敗しました"
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {error && (
+        <Card className="border-destructive/50">
+          <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      )}
+
       {/* Overview */}
       <Card>
         <CardHeader>
@@ -47,32 +188,60 @@ export function TalismanIntegration() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                type={showApiKey ? "text" : "password"}
-                value={mockApiKey}
-                readOnly
-                className="pr-10 font-mono text-sm"
-              />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          {activeKey ? (
+            <>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showApiKey ? "text" : "password"}
+                    value={displayKey || "Rotate to reveal secret"}
+                    readOnly
+                    className="pr-10 font-mono text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={copyApiKey}
+                  className="bg-transparent"
+                  disabled={!displayKey}
+                >
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="bg-transparent"
+                  onClick={rotateKey}
+                  disabled={isSubmitting}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Keep this key secret. Do not expose it in client-side code.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                key_id: {activeKey.keyId}
+              </p>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                API Keyがまだ作成されていません。
+              </p>
+              <Button onClick={createKey} disabled={isSubmitting || isLoading}>
+                {isSubmitting ? "Creating..." : "Create API Key"}
+              </Button>
             </div>
-            <Button variant="outline" size="icon" onClick={copyApiKey} className="bg-transparent">
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </Button>
-            <Button variant="outline" size="icon" className="bg-transparent">
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Keep this key secret. Do not expose it in client-side code.
-          </p>
+          )}
         </CardContent>
       </Card>
 

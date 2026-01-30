@@ -14,7 +14,6 @@ import {
   UserPlus,
   UserX,
   KeyRound,
-  Building2,
 } from "@/components/icons"
 import { EpochVisibilityDialog } from "@/components/epoch-visibility-dialog"
 import { EpochRevisionForm } from "@/components/epoch-revision-form"
@@ -28,7 +27,7 @@ type RecordType =
   | "declined"
   | "auth_recovered"
 
-type Visibility = "private" | "org_only" | "scout_visible" | "public"
+type Visibility = "private" | "scout_visible" | "public"
 
 interface EpochRecord {
   id: string
@@ -49,6 +48,8 @@ interface EpochRecordCardProps {
   record: EpochRecord
   isFirst: boolean
   isOwner?: boolean
+  userId?: string
+  onRecordChanged?: () => void
 }
 
 const recordTypeLabels: Record<RecordType, string> = {
@@ -73,14 +74,12 @@ const recordTypeIcons: Record<RecordType, typeof Clock> = {
 
 const visibilityIcons: Record<Visibility, typeof Lock> = {
   private: Lock,
-  org_only: Building2,
   scout_visible: Users,
   public: Globe,
 }
 
 const visibilityLabels: Record<Visibility, string> = {
   private: "非公開",
-  org_only: "組織限定",
   scout_visible: "スカウト公開",
   public: "公開",
 }
@@ -100,12 +99,84 @@ function formatTimestamp(iso: string): string {
   )
 }
 
-export function EpochRecordCard({ record, isFirst, isOwner = true }: EpochRecordCardProps) {
+export function EpochRecordCard({
+  record,
+  isFirst,
+  isOwner,
+  userId,
+  onRecordChanged,
+}: EpochRecordCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [showVisibility, setShowVisibility] = useState(false)
   const [showRevisionForm, setShowRevisionForm] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const isOwnerView = isOwner ?? Boolean(userId)
   const VisibilityIcon = visibilityIcons[record.visibility]
   const TypeIcon = recordTypeIcons[record.type]
+
+  const handleVisibilityChange = async (visibility: Visibility) => {
+    if (!userId) {
+      setActionError("ログインが必要です")
+      throw new Error("ログインが必要です")
+    }
+    setIsSubmitting(true)
+    setActionError(null)
+    try {
+      const response = await fetch(`/api/records/${record.id}/visibility`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, visibility }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "可視性の変更に失敗しました")
+      }
+      setShowVisibility(false)
+      onRecordChanged?.()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "可視性の変更に失敗しました"
+      setActionError(message)
+      throw new Error(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleRevisionSubmit = async (data: { content: string; visibility: Visibility }) => {
+    if (!userId) {
+      setActionError("ログインが必要です")
+      return
+    }
+    setIsSubmitting(true)
+    setActionError(null)
+    try {
+      const response = await fetch("/api/records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          recordType: "revised",
+          payload: {
+            content: data.content,
+            reference_record_id: record.id,
+          },
+          visibility: data.visibility,
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "改訂の作成に失敗しました")
+      }
+      setShowRevisionForm(false)
+      onRecordChanged?.()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "改訂の作成に失敗しました"
+      setActionError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   if (record.type === "invited" || record.type === "declined") {
     return (
@@ -200,7 +271,7 @@ export function EpochRecordCard({ record, isFirst, isOwner = true }: EpochRecord
             <span className="text-xs font-mono">{recordTypeLabels[record.type]}</span>
           </div>
 
-          <p className="text-sm text-muted-foreground">{record.content}</p>
+          <p className="text-sm text-muted-foreground">{record.content || "沈黙期間"}</p>
 
           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
             <time className="font-mono">{formatTimestamp(record.timestamp)}</time>
@@ -243,10 +314,7 @@ export function EpochRecordCard({ record, isFirst, isOwner = true }: EpochRecord
             timestamp: record.timestamp,
           }}
           onCancel={() => setShowRevisionForm(false)}
-          onSubmit={(data) => {
-            console.log("Revision submitted:", data)
-            setShowRevisionForm(false)
-          }}
+          onSubmit={handleRevisionSubmit}
         />
       </div>
     )
@@ -272,7 +340,7 @@ export function EpochRecordCard({ record, isFirst, isOwner = true }: EpochRecord
               {record.referencedRecordId && (
                 <span className="text-xs text-muted-foreground">→ {record.referencedRecordId.slice(0, 8)}...</span>
               )}
-              {isOwner ? (
+              {isOwnerView ? (
                 <button
                   onClick={() => setShowVisibility(true)}
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -318,7 +386,7 @@ export function EpochRecordCard({ record, isFirst, isOwner = true }: EpochRecord
               <span>検証情報</span>
             </button>
 
-            {isOwner && record.type !== "revised" && (
+            {isOwnerView && record.type !== "revised" && (
               <button
                 onClick={() => setShowRevisionForm(true)}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -346,6 +414,12 @@ export function EpochRecordCard({ record, isFirst, isOwner = true }: EpochRecord
               </div>
             </div>
           )}
+
+          {actionError && (
+            <div className="mt-3 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {actionError}
+            </div>
+          )}
         </div>
       </article>
 
@@ -356,6 +430,8 @@ export function EpochRecordCard({ record, isFirst, isOwner = true }: EpochRecord
           id: record.id,
           currentVisibility: record.visibility,
         }}
+        isSubmitting={isSubmitting}
+        onVisibilityChange={handleVisibilityChange}
       />
     </>
   )

@@ -1,8 +1,6 @@
 "use client"
 
-import React from "react"
-
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { EpochRecordCard } from "@/components/epoch-record-card"
 import { EpochPaymentDialog } from "@/components/epoch-payment-dialog"
 import { EpochScoutDialog } from "@/components/epoch-scout-dialog"
@@ -22,6 +20,8 @@ import {
   Link2,
   ExternalLink,
 } from "@/components/icons"
+import { useAuth } from "@/lib/auth/context"
+import { mapRecordToView, type EpochApiRecord, type EpochRecordView } from "@/lib/epoch/record-utils"
 
 type LinkType =
   | "website"
@@ -36,9 +36,9 @@ type LinkType =
 
 interface ProfileLink {
   id: string
-  type: LinkType
+  type: string
   url: string
-  label?: string
+  label?: string | null
 }
 
 const linkIcons: Record<LinkType, React.ReactNode> = {
@@ -66,76 +66,32 @@ const linkLabels: Record<LinkType, string> = {
 }
 
 interface EpochUserViewProps {
-  user: {
-    userId: string
-    displayName: string
-    bio: string
-    avatarUrl: string | null
-    createdAt: string
-    links?: ProfileLink[]
-  }
-  initialHasAccess: boolean
+  userId: string
 }
 
-// Mock records for the user
-const mockRecords = [
-  {
-    id: "01J5QKXR8V0000000000000010",
-    type: "decision_made" as const,
-    content: "新しいプロジェクトへの参画を決定した。チームの方向性と自分のスキルセットが合致すると判断。",
-    timestamp: "2024-08-10T09:00:00Z",
-    hash: "f8k7h6g5j4i3l2m1n0o9p8q7r6s5t4u3",
-    prevHash: "e7j6g5f2i3h8j9e1f2g3h4i5j6k7l8m9",
-    visibility: "public" as const,
-  },
-  {
-    id: "01J5QKXR8V0000000000000011",
-    type: "decision_not_made" as const,
-    content: "投資案件の検討を見送った。リスク評価の結果、現時点では判断を保留することにした。",
-    timestamp: "2024-07-25T14:30:00Z",
-    hash: "g9l8i7h6k5j4m3n2o1p0q9r8s7t6u5v4",
-    prevHash: "f8k7h6g5j4i3l2m1n0o9p8q7r6s5t4u3",
-    visibility: "public" as const,
-  },
-  {
-    id: "01J5QKXR8V0000000000000012",
-    type: "period_of_silence" as const,
-    content: null,
-    timestamp: "2024-07-01T00:00:00Z",
-    hash: "h0m9j8i7l6k5n4o3p2q1r0s9t8u7v6w5",
-    prevHash: "g9l8i7h6k5j4m3n2o1p0q9r8s7t6u5v4",
-    visibility: "public" as const,
-    silenceDuration: "2024-06-15T00:00:00Z ~ 2024-07-01T00:00:00Z",
-  },
-  {
-    id: "01J5QKXR8V0000000000000013",
-    type: "revision" as const,
-    content: "以前の判断について補足。当時の状況では最善だったが、新しい情報により見方が変わった。",
-    timestamp: "2024-06-14T11:00:00Z",
-    hash: "i1n0k9j8m7l6o5p4q3r2s1t0u9v8w7x6",
-    prevHash: "h0m9j8i7l6k5n4o3p2q1r0s9t8u7v6w5",
-    visibility: "public" as const,
-    refRecordId: "01J5QKXR8V0000000000000008",
-  },
-  {
-    id: "01J5QKXR8V0000000000000014",
-    type: "decision_made" as const,
-    content: "転職オファーを受諾した。長期的なキャリアパスを考慮した結果。",
-    timestamp: "2024-05-20T16:45:00Z",
-    hash: "j2o1l0k9n8m7p6q5r4s3t2u1v0w9x8y7",
-    prevHash: "i1n0k9j8m7l6o5p4q3r2s1t0u9v8w7x6",
-    visibility: "public" as const,
-  },
-]
+interface PublicUserProfile {
+  userId: string
+  displayName: string | null
+  bio: string | null
+  avatarUrl: string | null
+  createdAt: string
+  links?: ProfileLink[]
+}
 
-export function EpochUserView({ user, initialHasAccess }: EpochUserViewProps) {
-  const [hasAccess, setHasAccess] = useState(initialHasAccess)
+export function EpochUserView({ userId }: EpochUserViewProps) {
+  const { userId: viewerId } = useAuth()
+  const [user, setUser] = useState<PublicUserProfile | null>(null)
+  const [records, setRecords] = useState<EpochRecordView[]>([])
+  const [hasAccess, setHasAccess] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
   const [showScout, setShowScout] = useState(false)
   const [accessInfo, setAccessInfo] = useState<{
     type: "time_window" | "read_session"
     expiresAt: string
   } | null>(null)
+  const [grantId, setGrantId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const formatDate = (iso: string) => {
     return new Intl.DateTimeFormat("ja-JP", {
@@ -145,53 +101,133 @@ export function EpochUserView({ user, initialHasAccess }: EpochUserViewProps) {
     }).format(new Date(iso))
   }
 
-  const handlePaymentSuccess = (type: "time_window" | "read_session") => {
-    setHasAccess(true)
-    const expiresAt = new Date()
-    if (type === "read_session") {
-      expiresAt.setHours(expiresAt.getHours() + 24)
-    } else {
-      expiresAt.setDate(expiresAt.getDate() + 30)
+  const loadProfile = useCallback(async () => {
+    setError(null)
+    try {
+      const response = await fetch(`/api/epoch/users/${userId}`)
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "ユーザー情報の取得に失敗しました")
+      }
+      const data = (await response.json()) as { user: PublicUserProfile }
+      setUser(data.user)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "ユーザー情報の取得に失敗しました"
+      setError(message)
     }
-    setAccessInfo({
-      type,
-      expiresAt: expiresAt.toISOString(),
-    })
+  }, [userId])
+
+  const loadRecords = useCallback(
+    async (grantOverride?: string | null) => {
+      if (!viewerId) {
+        setHasAccess(false)
+        setRecords([])
+        return
+      }
+      setIsLoading(true)
+      setError(null)
+      try {
+        const params = new URLSearchParams({ viewerId })
+        params.set("scout", "1")
+        const resolvedGrantId = grantOverride ?? grantId
+        if (resolvedGrantId) {
+          params.set("grantId", resolvedGrantId)
+        }
+        const response = await fetch(`/api/records/${userId}?${params.toString()}`)
+        if (response.status === 403) {
+          setHasAccess(false)
+          setRecords([])
+          return
+        }
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || "履歴の取得に失敗しました")
+        }
+        const data = (await response.json()) as { records: EpochApiRecord[] }
+        const mapped = (data.records ?? []).map(mapRecordToView)
+        mapped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        setRecords(mapped)
+        setHasAccess(true)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "履歴の取得に失敗しました"
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [grantId, userId, viewerId],
+  )
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
+
+  useEffect(() => {
+    loadRecords()
+  }, [loadRecords])
+
+  const handlePaymentSuccess = (grant: {
+    type: "time_window" | "read_session"
+    endsAt?: string
+    windowEnd?: string
+    windowStart?: string
+    grantId: string
+  }) => {
+    setHasAccess(true)
+    setGrantId(grant.grantId)
+    const expiresAt = grant.endsAt ?? grant.windowEnd ?? grant.windowStart ?? new Date().toISOString()
+    setAccessInfo({ type: grant.type, expiresAt })
+    loadRecords(grant.grantId)
   }
+
+  const displayName = useMemo(() => {
+    return user?.displayName ?? user?.userId ?? userId
+  }, [user, userId])
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
+      {error && (
+        <div className="mb-4 rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+
       {/* User Header */}
       <div className="mb-8 p-6 border border-border bg-card">
         <div className="flex items-start gap-6">
           <Avatar className="h-16 w-16">
-            <AvatarImage src={user.avatarUrl || undefined} />
+            <AvatarImage src={user?.avatarUrl || undefined} />
             <AvatarFallback className="bg-secondary text-muted-foreground text-xl">
-              {user.displayName?.[0]?.toUpperCase() || "?"}
+              {displayName?.[0]?.toUpperCase() || "?"}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1">
-            <h1 className="text-lg font-medium text-foreground">{user.displayName}</h1>
-            {user.bio && <p className="mt-1 text-sm text-muted-foreground">{user.bio}</p>}
-            <p className="mt-2 text-xs font-mono text-muted-foreground">記録開始: {formatDate(user.createdAt)}</p>
+            <h1 className="text-lg font-medium text-foreground">{displayName}</h1>
+            {user?.bio && <p className="mt-1 text-sm text-muted-foreground">{user.bio}</p>}
+            <p className="mt-2 text-xs font-mono text-muted-foreground">
+              記録開始: {user?.createdAt ? formatDate(user.createdAt) : "-"}
+            </p>
 
             {/* Links */}
-            {user.links && user.links.length > 0 && (
+            {user?.links && user.links.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
-                {user.links.map((link) => (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-secondary border border-border rounded-md text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-                  >
-                    {linkIcons[link.type]}
-                    <span>{link.label || linkLabels[link.type]}</span>
-                    <ExternalLink className="h-3 w-3 opacity-50" />
-                  </a>
-                ))}
+                {user.links.map((link) => {
+                  const type = (link.type as LinkType) in linkIcons ? (link.type as LinkType) : "other"
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-secondary border border-border rounded-md text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+                    >
+                      {linkIcons[type]}
+                      <span>{link.label || linkLabels[type]}</span>
+                      <ExternalLink className="h-3 w-3 opacity-50" />
+                    </a>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -219,7 +255,7 @@ export function EpochUserView({ user, initialHasAccess }: EpochUserViewProps) {
               <p className="text-xs text-muted-foreground font-mono">有効期限: {formatDate(accessInfo.expiresAt)}</p>
             </div>
           </div>
-          
+
           {/* Viewing restrictions notice */}
           <div className="pt-3 border-t border-border">
             <p className="text-xs text-muted-foreground mb-2">閲覧制約（仕様書 第3条）:</p>
@@ -238,22 +274,24 @@ export function EpochUserView({ user, initialHasAccess }: EpochUserViewProps) {
         <section>
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-sm font-medium text-foreground">履歴</h2>
-            <span className="text-xs font-mono text-muted-foreground">{mockRecords.length} records</span>
+            <span className="text-xs font-mono text-muted-foreground">{records.length} records</span>
           </div>
 
           <div className="relative">
             <div className="absolute left-3 top-0 bottom-0 w-px bg-border" />
             <div className="space-y-1">
-              {mockRecords.map((record, index) => (
+              {records.map((record, index) => (
                 <EpochRecordCard
                   key={record.id}
                   record={record}
                   isFirst={index === 0}
-                  isLast={index === mockRecords.length - 1}
+                  isOwner={false}
                 />
               ))}
             </div>
           </div>
+
+          {isLoading && <div className="mt-6 text-xs text-muted-foreground">読み込み中...</div>}
         </section>
       ) : (
         <div className="border border-border bg-card p-12 text-center">
@@ -274,14 +312,23 @@ export function EpochUserView({ user, initialHasAccess }: EpochUserViewProps) {
         </div>
       )}
 
-      <EpochPaymentDialog
-        open={showPayment}
-        onOpenChange={setShowPayment}
-        targetUser={user}
-        onPaymentSuccess={handlePaymentSuccess}
-      />
+      {user && (
+        <EpochPaymentDialog
+          open={showPayment}
+          onOpenChange={setShowPayment}
+          targetUser={user}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
 
-      <EpochScoutDialog open={showScout} onOpenChange={setShowScout} targetUser={user} mode="send" />
+      {user && (
+        <EpochScoutDialog
+          open={showScout}
+          onOpenChange={setShowScout}
+          targetUser={{ displayName, userId }}
+          mode="send"
+        />
+      )}
     </div>
   )
 }
