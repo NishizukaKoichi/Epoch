@@ -69,6 +69,9 @@ export function DropdownMenuItem({
     })
   }
 
+  const sanitizedProps = { ...itemProps } as Record<string, unknown>
+  delete sanitizedProps.asChild
+
   return (
     <button
       type="button"
@@ -78,7 +81,7 @@ export function DropdownMenuItem({
         className
       )}
       onClick={handleClick}
-      {...itemProps}
+      {...sanitizedProps}
     />
   )
 }
