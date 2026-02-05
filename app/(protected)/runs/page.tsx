@@ -1,14 +1,23 @@
 import { redirect } from "next/navigation";
 import { listRuns } from "@/capabilities/exec/repo";
 import { RunList } from "@/capabilities/exec/ui/RunList";
-import { getServerUserId } from "@/lib/auth/server";
+import { getExecAccess } from "@/lib/auth/exec-access";
 
 export default async function RunsPage() {
-  const userId = await getServerUserId();
+  const access = await getExecAccess();
 
-  if (!userId) {
-    redirect("/login");
+  if (!access.ok) {
+    if (access.reason === "unauthenticated") {
+      redirect("/login");
+    }
+    return (
+      <div className="rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        {access.message}
+      </div>
+    );
   }
+
+  const userId = access.userId;
 
   const { runs, error } = await listRuns(userId);
 

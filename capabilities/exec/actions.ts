@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getServerUserId } from "@/lib/auth/server";
+import { getExecAccess } from "@/lib/auth/exec-access";
 import { uuidV7Like } from "@/lib/ids";
 import {
   fetchIntent,
@@ -45,11 +45,18 @@ export async function executeIntent(
   _: ExecuteResult,
   formData: FormData,
 ): Promise<ExecuteResult> {
-  const userId = await getServerUserId();
+  const access = await getExecAccess();
 
-  if (!userId) {
-    redirect("/login");
+  if (!access.ok) {
+    if (access.reason === "unauthenticated") {
+      redirect("/login");
+    }
+    return {
+      error: buildError("UNAUTHORIZED", access.message),
+    };
   }
+
+  const userId = access.userId;
 
   const parsedInput = executeInputSchema.safeParse({
     intentId: formData.get("intent_id"),
@@ -171,10 +178,15 @@ export async function createIntentAction(
     throw new Error("FormData missing in createIntentAction");
   }
 
-  const userId = await getServerUserId();
-  if (!userId) {
-    redirect("/login");
+  const access = await getExecAccess();
+  if (!access.ok) {
+    if (access.reason === "unauthenticated") {
+      redirect("/login");
+    }
+    throw new Error(access.message);
   }
+
+  const userId = access.userId;
 
   const action = String(formData.get("action") ?? "").trim();
   const status = String(formData.get("status") ?? "active").trim();

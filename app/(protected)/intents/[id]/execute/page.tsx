@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { executeIntent } from "@/capabilities/exec/actions";
 import { fetchIntent } from "@/capabilities/exec/repo";
 import { ExecuteForm } from "@/capabilities/exec/ui/ExecuteForm";
-import { getServerUserId } from "@/lib/auth/server";
+import { getExecAccess } from "@/lib/auth/exec-access";
 
 type Props = {
   params: Promise<{
@@ -12,11 +12,20 @@ type Props = {
 
 export default async function ExecuteIntentPage({ params }: Props) {
   const { id } = await params;
-  const userId = await getServerUserId();
+  const access = await getExecAccess();
 
-  if (!userId) {
-    redirect("/login");
+  if (!access.ok) {
+    if (access.reason === "unauthenticated") {
+      redirect("/login");
+    }
+    return (
+      <div className="rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        {access.message}
+      </div>
+    );
   }
+
+  const userId = access.userId;
 
   const { intent, error } = await fetchIntent(userId, id);
 

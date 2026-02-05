@@ -2,14 +2,23 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createIntentAction } from "@/capabilities/exec/actions";
 import { listIntents } from "@/capabilities/exec/repo";
-import { getServerUserId } from "@/lib/auth/server";
+import { getExecAccess } from "@/lib/auth/exec-access";
 
 export default async function IntentsPage() {
-  const userId = await getServerUserId();
+  const access = await getExecAccess();
 
-  if (!userId) {
-    redirect("/login");
+  if (!access.ok) {
+    if (access.reason === "unauthenticated") {
+      redirect("/login");
+    }
+    return (
+      <div className="rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        {access.message}
+      </div>
+    );
   }
+
+  const userId = access.userId;
 
   const { intents } = await listIntents(userId);
 

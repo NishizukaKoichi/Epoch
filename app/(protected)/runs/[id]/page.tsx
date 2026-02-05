@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { fetchRunById } from "@/capabilities/exec/repo";
 import { RunDetail } from "@/capabilities/exec/ui/RunDetail";
-import { getServerUserId } from "@/lib/auth/server";
+import { getExecAccess } from "@/lib/auth/exec-access";
 
 type Props = {
   params: Promise<{
@@ -11,11 +11,20 @@ type Props = {
 
 export default async function RunDetailPage({ params }: Props) {
   const { id } = await params;
-  const userId = await getServerUserId();
+  const access = await getExecAccess();
 
-  if (!userId) {
-    redirect("/login");
+  if (!access.ok) {
+    if (access.reason === "unauthenticated") {
+      redirect("/login");
+    }
+    return (
+      <div className="rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        {access.message}
+      </div>
+    );
   }
+
+  const userId = access.userId;
 
   const { run, error } = await fetchRunById(userId, id);
 
