@@ -18,7 +18,7 @@ export function EpochDashboard() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/records/self?userId=${encodeURIComponent(userId)}`)
+      const response = await fetch("/api/records/self")
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         throw new Error(payload?.error || "Failed to load records")

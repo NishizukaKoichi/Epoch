@@ -3,12 +3,15 @@ import { getEntitlement } from "../../../../../lib/entitlements";
 import { audit } from "../../../../../lib/audit";
 import { track } from "../../../../../lib/analytics";
 import { startReadGrant, type ReadAccessType } from "../../../../../lib/read-access";
+import { getServerUserId } from "../../../../../lib/auth/server";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const isProduction = process.env.NODE_ENV === "production";
   const body = await request.json();
-  const viewerId = body?.userId as string | undefined;
+  const authUserId = await getServerUserId();
+  const bodyViewerId = body?.userId as string | undefined;
   const targetUserId = body?.targetUserId as string | undefined;
   const type = body?.type as ReadAccessType | undefined;
   const hasOverrides =
@@ -16,6 +19,15 @@ export async function POST(request: Request) {
     body?.windowEnd !== undefined ||
     body?.durationMinutes !== undefined;
 
+  if (!authUserId && isProduction) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (authUserId && bodyViewerId && authUserId !== bodyViewerId) {
+    return NextResponse.json({ error: "Viewer mismatch" }, { status: 403 });
+  }
+
+  const viewerId = authUserId ?? bodyViewerId;
   if (!viewerId || !targetUserId || !type) {
     return NextResponse.json(
       { error: "userId, targetUserId, and type are required" },

@@ -65,7 +65,6 @@ export function EpochPaymentDialog({ open, onOpenChange, targetUser, onPaymentSu
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
           targetUserId: targetUser.userId,
           type: selected,
         }),

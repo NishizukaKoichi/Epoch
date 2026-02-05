@@ -10,6 +10,7 @@ import {
   isReadGrantActive,
   type ReadGrant,
 } from "../../../../lib/read-access";
+import { getServerUserId } from "../../../../lib/auth/server";
 
 export const runtime = "nodejs";
 
@@ -17,12 +18,23 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const isProduction = process.env.NODE_ENV === "production";
+  const authUserId = await getServerUserId();
   const targetUserId = params.id;
   const { searchParams } = new URL(request.url);
-  const viewerId = searchParams.get("viewerId");
+  const requestedViewerId = searchParams.get("viewerId");
   const includeScoutVisible = searchParams.get("scout") === "1";
   const grantId = searchParams.get("grantId");
 
+  if (!authUserId && isProduction) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (authUserId && requestedViewerId && authUserId !== requestedViewerId) {
+    return NextResponse.json({ error: "Viewer mismatch" }, { status: 403 });
+  }
+
+  const viewerId = authUserId ?? requestedViewerId;
   if (!viewerId) {
     return NextResponse.json({ error: "viewerId is required" }, { status: 400 });
   }

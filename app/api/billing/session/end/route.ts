@@ -2,14 +2,26 @@ import { NextResponse } from "next/server";
 import { audit } from "../../../../../lib/audit";
 import { track } from "../../../../../lib/analytics";
 import { endReadGrant } from "../../../../../lib/read-access";
+import { getServerUserId } from "../../../../../lib/auth/server";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const isProduction = process.env.NODE_ENV === "production";
   const body = await request.json();
-  const viewerId = body?.userId as string | undefined;
+  const authUserId = await getServerUserId();
+  const bodyViewerId = body?.userId as string | undefined;
   const grantId = body?.grantId as string | undefined;
 
+  if (!authUserId && isProduction) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (authUserId && bodyViewerId && authUserId !== bodyViewerId) {
+    return NextResponse.json({ error: "Viewer mismatch" }, { status: 403 });
+  }
+
+  const viewerId = authUserId ?? bodyViewerId;
   if (!viewerId || !grantId) {
     return NextResponse.json(
       { error: "userId and grantId are required" },

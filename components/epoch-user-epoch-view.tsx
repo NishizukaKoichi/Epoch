@@ -127,7 +127,7 @@ export function EpochUserView({ userId }: EpochUserViewProps) {
       setIsLoading(true)
       setError(null)
       try {
-        const params = new URLSearchParams({ viewerId })
+        const params = new URLSearchParams()
         params.set("scout", "1")
         const resolvedGrantId = grantOverride ?? grantId
         if (resolvedGrantId) {
