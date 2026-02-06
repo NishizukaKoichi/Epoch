@@ -1,7 +1,14 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
-import { translations, defaultLocale, type Locale, type TranslationKey } from "./translations"
+import {
+  translations,
+  localeNames,
+  defaultLocale,
+  type BaseLocale,
+  type Locale,
+  type TranslationKey,
+} from "./translations"
 
 interface I18nContextType {
   locale: Locale
@@ -18,12 +25,12 @@ const getInitialLocale = (): Locale => {
   }
 
   const saved = window.localStorage.getItem("epoch-locale") as Locale | null
-  if (saved && saved in translations) {
+  if (saved && saved in localeNames) {
     return saved
   }
 
   const browserLang = navigator.language.split("-")[0] as Locale
-  if (browserLang in translations) {
+  if (browserLang in localeNames) {
     return browserLang
   }
 
@@ -41,11 +48,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }
 
   const t = (key: TranslationKey): string => {
-    const currentTranslations = translations[locale]
-    const fallbackTranslations = translations[defaultLocale]
+    const currentTranslations = (locale in translations
+      ? translations[locale as BaseLocale]
+      : null) as Partial<Record<TranslationKey, string>> | null
+    const fallbackTranslations = translations[defaultLocale as BaseLocale]
 
-    // @ts-expect-error - key might not exist in all locales
-    return currentTranslations[key] ?? fallbackTranslations[key] ?? key
+    return currentTranslations?.[key] ?? fallbackTranslations[key] ?? key
   }
 
   return (
