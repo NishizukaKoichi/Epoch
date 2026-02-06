@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 
 const baseUrl =
   process.env.SMOKE_BASE_URL ?? process.env.APP_BASE_URL ?? "http://localhost:3000";
+const authCookieName = process.env.SMOKE_AUTH_COOKIE_NAME ?? "user_id";
+const internalAuthSecret = process.env.SMOKE_INTERNAL_REQUEST_SECRET;
+const smokeFlow = process.env.SMOKE_FLOW ?? "platform";
 
 function fail(message, details) {
   console.error(`[smoke] FAIL: ${message}`);
@@ -24,6 +27,24 @@ async function requestJson(path, init = {}) {
   return { response, json };
 }
 
+function authHeaders(userId, extra = {}) {
+  const headers = {
+    cookie: `${authCookieName}=${encodeURIComponent(userId)}`,
+    ...extra,
+  };
+
+  if (internalAuthSecret) {
+    headers["x-internal-auth"] = internalAuthSecret;
+  }
+
+  return headers;
+}
+
+async function requestPage(path) {
+  const response = await fetch(`${baseUrl}${path}`);
+  return response;
+}
+
 function assert(condition, message, details) {
   if (!condition) {
     fail(message, details);
@@ -34,13 +55,19 @@ async function run() {
   const userId = randomUUID();
   const recordContent = `smoke-${Date.now()}`;
   const spellId = randomUUID();
+  const productPaths = ["/", "/library", "/epoch", "/sigil", "/pact", "/talisman", "/spell"];
 
   console.log(`[smoke] baseUrl=${baseUrl}`);
   console.log(`[smoke] userId=${userId}`);
 
+  for (const path of productPaths) {
+    const response = await requestPage(path);
+    assert(response.ok, `page check failed for ${path}`, { status: response.status });
+  }
+
   const createRecord = await requestJson("/api/records", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: authHeaders(userId, { "content-type": "application/json" }),
     body: JSON.stringify({
       userId,
       recordType: "decision_made",
@@ -53,19 +80,28 @@ async function run() {
   const recordId = createRecord.json?.record?.recordId;
   assert(typeof recordId === "string" && recordId.length > 0, "record_id missing", createRecord.json);
 
-  const listRecords = await requestJson(`/api/records/self?userId=${encodeURIComponent(userId)}`);
+  const listRecords = await requestJson(`/api/records/self?userId=${encodeURIComponent(userId)}`, {
+    headers: authHeaders(userId),
+  });
   assert(listRecords.response.ok, "record fetch failed", listRecords.json);
   const found = Array.isArray(listRecords.json?.records)
     ? listRecords.json.records.some((record) => record.recordId === recordId)
     : false;
   assert(found, "created record not found in self list", listRecords.json);
 
+  if (smokeFlow === "platform") {
+    console.log("[smoke] flow=platform");
+    console.log("[smoke] OK");
+    console.log(`[smoke] record_id=${recordId}`);
+    return;
+  }
+
   const createKey = await requestJson("/api/v1/developer-keys", {
     method: "POST",
-    headers: {
+    headers: authHeaders(userId, {
       "content-type": "application/json",
       "x-user-id": userId,
-    },
+    }),
     body: JSON.stringify({ name: `smoke-${Date.now()}` }),
   });
   assert(createKey.response.ok, "developer key creation failed", createKey.json);
@@ -77,10 +113,10 @@ async function run() {
 
   const grantScope = await requestJson(`/api/v1/developer-keys/${keyId}/scopes`, {
     method: "POST",
-    headers: {
+    headers: authHeaders(userId, {
       "content-type": "application/json",
       "x-user-id": userId,
-    },
+    }),
     body: JSON.stringify({
       scope: "spell.check",
       action: "grant",
@@ -129,11 +165,12 @@ async function run() {
 
   const revokeKey = await requestJson(`/api/v1/developer-keys/${keyId}/revoke`, {
     method: "POST",
-    headers: { "x-user-id": userId },
+    headers: authHeaders(userId, { "x-user-id": userId }),
   });
   assert(revokeKey.response.ok, "developer key revoke failed", revokeKey.json);
 
   console.log("[smoke] OK");
+  console.log(`[smoke] flow=${smokeFlow}`);
   console.log(`[smoke] record_id=${recordId}`);
   console.log(`[smoke] key_id=${keyId}`);
 }
